@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Callable
 
 from ..clock.sync import ClockOffset
 from ..config import Context, RobotConfig
@@ -44,25 +43,6 @@ class PreflightReport:
             lines.append(f"  [{mark}] {name}" + (f" -- {detail}" if detail else ""))
         lines.append(f"  => {'READY' if self.ok else 'NOT READY'}")
         return "\n".join(lines)
-
-
-def sleep_unless(
-    seconds: float,
-    should_stop: Callable[[], bool] | None,
-    slice_s: float = 0.05,
-) -> bool:
-    """Sleep, but answer `should_stop` quickly. True means it fired."""
-    if should_stop is None:
-        time.sleep(seconds)
-        return False
-    end = time.monotonic() + seconds
-    while True:
-        if should_stop():
-            return True
-        left = end - time.monotonic()
-        if left <= 0:
-            return False
-        time.sleep(min(slice_s, left))
 
 
 def preflight(ctx: Context, robots: list[RobotConfig]) -> PreflightReport:
@@ -256,50 +236,25 @@ class Show:
         errors = {rid: str(err) for rid, (_, err) in results.items() if err}
         return t0, errors
 
-    def monitor(
-        self,
-        duration: float,
-        poll: float = 0.5,
-        should_stop: "Callable[[], bool] | None" = None,
-    ) -> RunResult:
+    def monitor(self, duration: float, poll: float = 0.5) -> RunResult:
         """Watch until every robot finishes or the wall clock runs out.
 
         A robot that stops answering is recorded and otherwise ignored. Each
         agent is autonomous after START, so one dropping costs exactly one
         instrument part.
-
-        `should_stop` lets an operator interrupt without waiting for the end of
-        the piece -- a stop button has to answer in well under a second, while
-        asking nine agents for status twice a second is the rate that was
-        measured not to interfere with the show. So the two are decoupled: the
-        wait between polls is sliced finely and only the *answer* is fast. The
-        caller still has to actually stop the robots; returning here only hands
-        control back.
         """
         res = RunResult(started_at=time.monotonic(), duration=0.0)
         deadline = time.monotonic() + duration + 5.0
         pending = {l.robot_id for l in self.fleet.links}
 
         while pending and time.monotonic() < deadline:
-            if sleep_unless(poll, should_stop):
-                res.aborted = True
-                res.duration = time.monotonic() - res.started_at
-                return res
+            time.sleep(poll)
             for link in list(self.fleet.links):
                 if link.robot_id not in pending:
                     continue
-                # With a heartbeat running, read what it heard rather than ask.
-                # Asking a robot that has gone waits out the link timeout, and
-                # for those seconds `should_stop` is not looked at.
-                st = None
-                if self.heartbeat:
-                    st = self.heartbeat.status_since(link.robot_id, res.started_at)
-                else:
-                    try:
-                        st = link.status()
-                    except Exception:
-                        pass
-                if st is None:
+                try:
+                    st = link.status()
+                except Exception:
                     if self.heartbeat and self.heartbeat.failures.get(link.robot_id, 0) >= 3:
                         res.dropped.append(link.robot_id)
                         pending.discard(link.robot_id)
@@ -322,11 +277,10 @@ class Show:
         return res
 
     # -- stopping --------------------------------------------------------
-    def stop(self, fade_s: float = 0.0) -> dict[str, str]:
-        """Graceful: agents ramp to neutral, or fade out over `fade_s`, then
-        disable motors."""
+    def stop(self) -> dict[str, str]:
+        """Graceful: agents ramp to neutral, then disable motors."""
         errors = {}
-        for rid, (_, err) in self.fleet.abort(fade_s).items():
+        for rid, (_, err) in self.fleet.abort().items():
             if err:
                 errors[rid] = str(err)
         return errors
@@ -394,14 +348,3 @@ class Show:
         if self.heartbeat:
             self.heartbeat.stop()
         self.fleet.close()
-
-
-LOOP_GAP_S = 5.0
-"""ループ再生で1回と次の回のあいだに置く間。
-
-就寝姿勢から次の回の開始姿勢へ戻る `goto`（arm 内、2秒）が入るので、ここを 0 に
-すると礼の直後に頭が持ち上がって不自然に見える。観客が「終わった」と分かる間を
-取るための値で、安全上の意味は無い。
-
-端末（`orchestra show run`）と画面（`orchestra web`）の両方が使う。同じ公演が
-起動方法によって違う間合いになってはいけないので、定義はここ1か所。"""

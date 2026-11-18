@@ -35,10 +35,6 @@ agent:
   fps: 100.0
   # Graceful-abort ramp back to neutral.
   abort_ramp_s: 0.5
-  # The console's stop button: the music fades and the head goes down to the
-  # closing pose over this long. The music stays at full level for the first
-  # 1.8 s or so, because what is already queued cannot be changed.
-  fade_out_s: 5.0
   # If the PC control link is lost mid-show for longer than this, the agent
   # finishes its current phrase then parks at neutral. It never stops mid-strike.
   deadman_timeout_s: 5.0
@@ -55,9 +51,8 @@ clock_sync:
 show:
   # How far in the future T0 is scheduled. Must comfortably exceed worst-case
   # START message delivery; the measured Wi-Fi power-save wake spike is 17-90 ms,
-  # so 1.5 s is ~16x margin. It also has to clear the 286 ms audio latency. The
-  # robots stand still for all of it, so more margin is not free.
-  start_lead_s: 1.5
+  # so 3 s is ~30x margin.
+  start_lead_s: 3.0
   heartbeat_interval_s: 1.0    # also keeps Wi-Fi out of power-save
 
 safety:

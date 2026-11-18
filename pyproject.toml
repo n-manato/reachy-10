@@ -1,7 +1,7 @@
 [project]
 name = "reachy-orchestra"
 version = "0.1.0"
-description = "Synchronized multi-robot orchestra for Reachy Mini"
+description = "Reachy Mini robot orchestra -- West African Mande ensemble (Lamban)"
 requires-python = ">=3.11"
 
 dependencies = [
@@ -15,24 +15,11 @@ dependencies = [
     "requests>=2.31",
     "websockets>=12.0",
     "mido>=1.3",          # MIDI parsing (pure python, no rtmidi backend needed)
-    # `orchestra web`. Already present as a transitive dependency of the SDK,
-    # but the console imports it directly, so it is declared directly.
-    "aiohttp>=3.9",
 ]
 
 [project.optional-dependencies]
 plot = ["matplotlib>=3.8"]      # orchestra clip plot
 dev = ["pytest>=8.0"]
-# 歌わせるときだけ要る。PC 側でステムを焼くための道具で、演奏そのものには
-# 使わない（本番に鳴るのは焼き上げた WAV）。ロボット側には何も入れない。
-voice = [
-    "edge-tts>=7.0",      # 子供の声のニューラル音声合成 + 単語ごとの時刻
-    "pyworld>=0.3.4",     # WORLD ボコーダ。音程と長さだけを差し替えるのに使う
-    "setuptools<81",      # pyworld が pkg_resources を読む。新しい版では削除済み
-    "soundfile>=0.12",    # 合成器が返す mp3 を解くため（取得時のみ）
-    "cmudict>=1.0",       # 単語 -> ARPAbet。DiffSinger の発音辞書（audio/svs.py）
-]
-
 [project.scripts]
 orchestra = "orchestra.cli:main"
 
@@ -42,12 +29,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["orchestra*"]
-
-[tool.setuptools.package-data]
-# The console's page and its vendored three.js are not importable modules, so
-# `packages.find` does not see them. Without this a non-editable install serves
-# a 404 for every static file.
-"orchestra.web" = ["static/*", "static/vendor/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

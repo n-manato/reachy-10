@@ -27,88 +27,6 @@ OUTPUT_RATE = 16000        # パイプライン固定値。変更不可
 WORK_RATE = 22050          # gm.dls の素材レート。ここで作業する
 
 
-# ---------------------------------------------------------------------------
-# 歌に聞こえるようにする
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class VocalExpression:
-    """静止したサンプルを、人が唄っているように動かす。
-
-    **なぜ要るか。** gm.dls の Choir Aahs / Voice Oohs は、シンセ側が
-    エンベロープとビブラートを付ける前提で作られた**静止ループ**。
-    CHOIR65A は 562ms のうち 395ms がループで、その中身は変化しない。
-    そのまま鳴らすと実測で **音程の揺れ 0.0 cent** ―― 完全に固まった音になり、
-    人ではなくオルガンかパッドに聞こえる。実際そうなっていた。
-
-    人の声と機械音を分ける手がかりを、効く順に:
-
-    1. **ビブラート** ―― これが最大。5〜6 Hz、±30〜60 cent。ただし発声と同時では
-       なく、少し遅れて立ち上がる。人は音を当ててから揺らす。
-    2. **音の入りのしゃくり上げ** ―― 声帯は目標の音程にいきなり乗らない。
-       50ms ほどかけて下から入る。
-    3. **音程が正確すぎない** ―― 音符ごとに数 cent ばらつく。完璧な音程は
-       人にはできない。
-    4. **2人が微妙にずれている** ―― 主旋律とハモリで揺れの速さと位相を変える。
-       同じに揺れると2人が1つの音色に融けてしまい、人数が減って聞こえる。
-    5. **息の入る立ち上がり** ―― 瞬時に最大音量にならない。
-    """
-
-    vibrato_hz: float = 5.4
-    vibrato_cents: float = 42.0
-    vibrato_delay_s: float = 0.18       # 音を当ててから揺らし始めるまで
-    vibrato_ramp_s: float = 0.22
-    scoop_cents: float = 55.0           # 音の入りで下から入る量
-    scoop_s: float = 0.055
-    detune_cents: float = 7.0           # 音符ごとのばらつき（人は正確すぎない）
-    attack_s: float = 0.045
-    release_s: float = 0.09
-    breath_hz: float = 0.7              # ゆっくりした息の揺れ
-    breath_depth: float = 0.13
-    seed: int = 0
-
-    def apply(self, x: np.ndarray, sr: int, note_index: int) -> np.ndarray:
-        if len(x) < 8:
-            return x
-        rng = np.random.default_rng(self.seed * 100003 + note_index)
-        n = len(x)
-        t = np.arange(n) / sr
-
-        # --- 音程を動かす（cent 単位で足し合わせてから比に直す）---
-        cents = np.zeros(n)
-
-        onset = np.clip((t - self.vibrato_delay_s) / max(self.vibrato_ramp_s, 1e-6), 0, 1)
-        phase = float(rng.uniform(0, 2 * np.pi))
-        # 揺れの速さ自体も一定ではない。機械的な正弦だとサイレンに聞こえる。
-        hz = self.vibrato_hz * (1.0 + 0.06 * np.sin(2 * np.pi * 0.31 * t + phase))
-        cents += self.vibrato_cents * onset * np.sin(2 * np.pi * np.cumsum(hz) / sr + phase)
-
-        # 入りのしゃくり上げ。下から目標へ。
-        if self.scoop_cents > 0:
-            k = np.clip(t / max(self.scoop_s, 1e-6), 0, 1)
-            cents += -self.scoop_cents * (1.0 - k) ** 2
-
-        # 音符ごとの音程のばらつき
-        cents += float(rng.normal(0.0, self.detune_cents))
-
-        ratio = 2.0 ** (cents / 1200.0)
-        pos = np.concatenate([[0.0], np.cumsum(ratio)[:-1]])
-        pos = np.clip(pos, 0, n - 1)
-        y = np.interp(pos, np.arange(n), x)
-
-        # --- 音量を動かす ---
-        env = np.ones(n)
-        a = max(1, int(self.attack_s * sr))
-        env[:a] *= np.sin(np.linspace(0, np.pi / 2, a)) ** 2
-        r = max(1, int(self.release_s * sr))
-        if r < n:
-            env[-r:] *= np.cos(np.linspace(0, np.pi / 2, r)) ** 2
-        bphase = float(rng.uniform(0, 2 * np.pi))
-        env *= 1.0 + self.breath_depth * np.sin(2 * np.pi * self.breath_hz * t + bphase)
-        return (y * env).astype(x.dtype)
-
-
 @dataclass
 class Voice:
     """1つのステムを作るための「楽器 + 鳴らし方」の指定。"""
@@ -128,8 +46,6 @@ class Voice:
     """
     pan: float = 0.0               # -1..+1。ロボットは1台1スピーカーなので通常0
     fixed_note: int | None = None  # 打楽器のように音程を持たない場合
-    vocal: "VocalExpression | None" = None
-    _note_no: int = 0
 
     def render_note(self, ev: NoteEvent, dur_s: float, sr: int) -> np.ndarray:
         note = self.fixed_note if self.fixed_note is not None else ev.pitch + self.transpose
@@ -142,9 +58,6 @@ class Voice:
             velocity=0.35 + 0.65 * ev.dynamic,
             samplerate=sr, tail_s=self.note_tail_s,
         )
-        if self.vocal is not None:
-            x = self.vocal.apply(x, sr, self._note_no)
-            self._note_no += 1
         return x * self.gain
 
 
@@ -322,46 +235,58 @@ def read_wav_f32(path: str | Path) -> tuple[np.ndarray, int]:
 # ---------------------------------------------------------------------------
 # 楽器の定義（この編成で使うもの）
 # ---------------------------------------------------------------------------
+#
+# マンデ（マリ／ギニア）の Lamban 編成。8種すべて `tools/make_mande_samples.py`
+# が数値合成で作る。gm.dls には kora も ngoni も balafon も djembe も無いので、
+# 実録音の代用を探すより自分で鳴らすほうが近いところまで行ける。
+#
+# **すべて `melodic` 経路で引く。** `percussion` 経路は 1楽器 1波形・`fixed_note=60`
+# 固定なので、djembe の bass/tone/slap や dunun の open/muted/鈴 を打ち分けられない。
+# こちらはゾーン＝打法（打楽器）／ゾーン＝棒・弦（旋律楽器）で持たせている。
+#
+# 種別 `struck` は `_envelope()` に分岐を持たないので**素通し**になり、合成側で
+# 作り込んだ減衰がそのまま生きる。`play_note()` 側では `percussion` 以外として
+# 扱われるので、ノート番号によるゾーン選択が効く ―― この2つの性質の組み合わせが
+# 欲しくてこの名前を使っている。
 
 # name -> (ライブラリ上の名前, 種別, 既定ゲイン, 移調)
 INSTRUMENT_PRESETS: dict[str, tuple[str, str, float, int]] = {
-    # 歌 —— 2台がハモる
-    # Voice Oohs は素材のレベルが高く、既定 0.85 だと単体でピーク 1.07 まで行った。
-    # balance() が後で下げるとはいえ、レンダリング段でクリップさせない値にしておく。
-    "voice_lead":  ("choir_aahs", "sustain", 0.90, 0),
-    "voice_harmony": ("voice_oohs", "sustain", 0.55, 0),
-    # 旋律・対旋律
-    "glockenspiel": ("glockenspiel", "mallet", 0.90, 0),
-    "vibraphone":  ("vibraphone", "mallet", 0.85, 0),
-    "marimba":     ("marimba", "mallet", 0.85, 0),
-    "celesta":     ("celesta", "mallet", 0.80, 0),
-    # 和声
-    "warm_pad":    ("warm_pad", "sustain", 0.55, 0),
-    "strings":     ("string_ensemble", "sustain", 0.60, 0),
+    # 旋律 —— ゾーン番号は「棒」「弦」の通し番号。音高ではない（音律は合成時に焼く）
+    "balafon":  ("balafon", "struck", 0.55, 0),
+    "kora":     ("kora", "struck", 0.80, 0),
+    "ngoni":    ("ngoni", "struck", 0.80, 0),
+    # 太鼓 —— ゾーン番号は打法
+    "djembe":   ("djembe", "struck", 0.90, 0),
+    "dundunba": ("dundunba", "struck", 0.90, 0),
+    "sangban":  ("sangban", "struck", 0.85, 0),
+    "tama":     ("tama", "struck", 0.80, 0),
+    # 体鳴 —— ゾーン番号は往/復
+    "karignan": ("karignan", "struck", 0.55, 0),
 }
 
-PERCUSSION_PRESETS: dict[str, tuple[str, float]] = {
-    "woodblock":   ("woodblock", 0.85),
-    "tambourine":  ("tambourine", 0.70),
-    "shaker":      ("maracas", 0.60),
-    "cabasa":      ("cabasa", 0.60),
-    "jingle_bells": ("jingle_bell", 0.65),
-    "triangle":    ("triangle", 0.60),
-    "claves":      ("claves", 0.75),
-}
+# 使っていない。`percussion` 経路は 1楽器 1波形・音程固定で、この編成では
+# 打ち分けが要るため全楽器を `INSTRUMENT_PRESETS` 側に置いている。
+PERCUSSION_PRESETS: dict[str, tuple[str, float]] = {}
 
 
-# 歌い手ごとに揺れ方を変える。**同じに揺らしてはいけない** ―― 2つの声が
-# 同じ速さ・同じ位相で揺れると1つの音色に融けて、2人ではなく厚い1人に
-# 聞こえる。合唱が合唱に聞こえるのは、全員が少しずつ違うから。
-VOCAL_STYLES: dict[str, "VocalExpression"] = {
-    "voice_lead": VocalExpression(
-        vibrato_hz=5.5, vibrato_cents=45.0, vibrato_delay_s=0.17,
-        scoop_cents=60.0, breath_hz=0.7, seed=1),
-    "voice_harmony": VocalExpression(
-        # ハモリ側は控えめに、少し遅く揺れる。主旋律より前に出ない。
-        vibrato_hz=4.8, vibrato_cents=34.0, vibrato_delay_s=0.23,
-        scoop_cents=40.0, breath_hz=0.55, detune_cents=9.0, seed=2),
+# 音符の後に残す余韻[秒]。**音符の長さとは別物**であることが肝。
+#
+# 楽譜側の音符は短く書いてある（16分刻みのパートでは 0.2 拍）。同じ音高の
+# 音符が時間的に重なると、MIDI の note_on/note_off の対応が壊れて音が脱落する
+# ためで、実際に加熱部のドゥンドゥンバが12打中8打になっていた。
+#
+# だが太鼓も撥弦も、次の打が来ても前の音は鳴り続ける。その「鳴り続け」は
+# 音符の長さではなく**こちら**が持つ。`render_stem` は加算合成なので、
+# 余韻どうしが重なるのは正しい挙動（実際の楽器がそうであるように）。
+NOTE_TAIL_S: dict[str, float] = {
+    "balafon": 0.85,     # 瓢箪共鳴。低音の棒はよく伸びる
+    "kora": 1.60,        # 21弦。低音弦は2秒近く鳴る
+    "ngoni": 0.85,       # コラより速く減衰する
+    "tama": 0.30,        # 小さな締太鼓。短い
+    "djembe": 0.55,
+    "dundunba": 0.95,    # 最大の胴。最も長く残る
+    "sangban": 0.75,
+    "karignan": 0.22,    # 擦る音。余韻は無い
 }
 
 
@@ -369,14 +294,10 @@ def make_voice(lib: SampleLibrary, preset: str) -> Voice:
     """プリセット名から Voice を組み立てる。"""
     if preset in INSTRUMENT_PRESETS:
         sample_name, kind, gain, transpose = INSTRUMENT_PRESETS[preset]
-        # 歌だけ音符を切る。他の持続音（パッド・弦）は繋がっていて構わない
-        # ―― むしろ繋がっているのがその楽器らしさなので。
-        sings = preset.startswith("voice_")
         return Voice(instrument=lib.melodic(sample_name, kind),
                      gain=gain, transpose=transpose,
-                     articulation=0.72 if sings else 1.0,
-                     vocal=VOCAL_STYLES.get(preset) if sings else None,
-                     note_tail_s=0.5 if kind == "sustain" else 0.35)
+                     note_tail_s=NOTE_TAIL_S.get(
+                         preset, 0.5 if kind == "sustain" else 0.35))
     if preset in PERCUSSION_PRESETS:
         sample_name, gain = PERCUSSION_PRESETS[preset]
         return Voice(instrument=lib.percussion(sample_name), gain=gain,

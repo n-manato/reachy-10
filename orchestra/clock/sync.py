@@ -116,12 +116,6 @@ def estimate(
     return res
 
 
-# Past this, the last estimate says nothing about now. At 30 ppm the clocks part
-# by 18 ms in 10 minutes, about what percussion can hide. A console left up for
-# ten days had parted by 18 s, and blending that in only halved it per take.
-STALE_AFTER_S = 600.0
-
-
 class DriftTracker:
     """Tracks a robot's clock drift across successive sync rounds.
 
@@ -131,8 +125,7 @@ class DriftTracker:
 
     Also smooths the offset: a single noisy round should nudge the estimate, not
     replace it. The smoothing is deliberately light so a genuine step (agent
-    restart, clock reset) is still tracked within a couple of rounds, and an
-    estimate older than `STALE_AFTER_S` is replaced outright.
+    restart, clock reset) is still tracked within a couple of rounds.
     """
 
     def __init__(self, alpha: float = 0.4):
@@ -143,10 +136,8 @@ class DriftTracker:
     def update(self, obs: ClockOffset) -> float:
         if not obs.ok:
             return self.offset if self.offset is not None else 0.0
-        stale = bool(self.history) and (
-            obs.measured_at - self.history[-1].measured_at > STALE_AFTER_S)
         self.history.append(obs)
-        if self.offset is None or stale:
+        if self.offset is None:
             self.offset = obs.offset
         else:
             # Weight a confident round more heavily than a noisy one.

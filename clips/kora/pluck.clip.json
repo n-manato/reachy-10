@@ -1,0 +1,102 @@
+{
+  "name": "kora_pluck",
+  "version": 1,
+  "instrument": "kora",
+  "description": "コラを弾く（エアー）。\n\n見分けの要点: **頭がほとんど動かず、耳だけが弾く**。21弦を両手の親指と人差し指で弾く楽器で、奏者の体幹は静止したまま指だけが走る。その指をアンテナに担わせた。耳が大きく開いた構えはペルソナ側（速度ゼロ）にあり、ここはその上で指を弾くぶんだけ動く。\n\n16分で弾き続けるパートなので、**打点の前後 0.45 拍で必ず中立へ帰る**。居残ると隣の音のぶんと足し算になって可動端に張り付く。\n\nンゴニも撥弦だが、あちらは深く前傾して胴を覗き込む。こちらは顔が正面。",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.12
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {
+          "z": 0.0,
+          "pitch": 0.0
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.05,
+        "pose": {
+          "z": 0.9,
+          "pitch": -0.8
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.12,
+        "pose": {
+          "z": -1.1,
+          "pitch": 1.2
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.18,
+        "pose": {
+          "z": -1.4,
+          "pitch": 1.5
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.45,
+        "pose": {
+          "z": 0.0,
+          "pitch": 0.0
+        },
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.12,
+        "value": 1.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.45,
+        "value": 0.0,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.12,
+        "value": [
+          -20.5,
+          20.5
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.45,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

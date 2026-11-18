@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """外から持ってきた MIDI を、この曲が読める形に直して取り込む。
 
-    python tools/import_midi.py 拾ってきた.mid --song songs/small_world \\
+    python tools/import_midi.py 拾ってきた.mid --song songs/lamban \\
         --map 1=Melody 2=Harmony 4=Counter 5=Bass
 
 `song.yaml` の各パートは **トラック名** でどの旋律を弾くかを決める
@@ -106,7 +106,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("source", help="the MIDI file to import")
-    ap.add_argument("--song", default="songs/small_world")
+    ap.add_argument("--song", default="songs/lamban")
     ap.add_argument("--map", nargs="*", default=[],
                     metavar="N=NAME", help="track number = new name")
     ap.add_argument("--list", action="store_true", help="just show the contents")

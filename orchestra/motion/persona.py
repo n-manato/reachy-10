@@ -222,130 +222,136 @@ class Persona:
 
 
 # ---------------------------------------------------------------------------
-# 9役
+# 9役（マンデ編成）
 # ---------------------------------------------------------------------------
 # 割り振りの考え方: **9台が互いに違う軸で目立つ**ようにする。全員が同じ軸で
 # 大小を競うと、結局「なんとなく違う」にしかならない。
 #
-#   体の向き   マリンバ -40° / ウッドブロック +40° / グロッケン +25°
-#   高さ       グロッケンが最も高く、マリンバが最も低い（±11mm で最大差 22mm）
-#   傾き       タンバリンだけが首を傾げ続ける
-#   耳         鈴が別格に開き、ウッドブロックだけ左右非対称
-#   動き続ける シェイカーだけ止まらない / ウッドブロックだけ静止
+#   体の向き   dundunba +14° / sangban -14° ―― 太鼓2台が向かい合う
+#   高さ       kora が最も高く（z +5）、dundunba が最も低い（z -11）
+#   傾き       tama だけが体を傾け続ける（脇に太鼓を挟む姿勢）
+#   耳         kora が別格に開き（指の代弁）、tama だけ左右非対称
+#   動き続ける karignan だけ止まらない / kora はほぼ静止
+#   拍の周期   ngoni/karignan 1拍 → djembe/sangban 2拍 → balafon 4拍
+#              → dundunba 8拍。同じ形でも速さが違えば別の役に見える。
 #
 # 予算（副次レイヤ +7.2mm z ・打点クリップ +2.8mm z などを足した上で）
 #   z ±22mm / y ±25mm / x ±25mm / tilt 25° / rel_yaw 45° / antenna 150°
 # tests/test_persona.py がこれを数値で守る。
-
-# 2026-08-09 改訂 ―― 公式の dances library（pollen-robotics/reachy_mini_dances_
-# library、20手）を読んで方針を修正した。あちらの20手が使う軸の頻度は
-#     pitch 8 / roll 7 / y 4 / yaw 2 / z 1 / x 1
-# で、**回転が圧倒的、並進はほとんど使わない**。こちらの実測（28cm の機体で
-# 並進 ±16mm は遠目に見えない）とも一致する。
 #
-# 一方であちらは **body_yaw を1つも使っていない** ―― `MoveOffsets` にその
-# チャンネルが無いから。だがこの機体で最も視認性が高い軸はそこなので、
-# 使わない手は無い。「回転主体・body_yaw を広く取る」へ寄せた。
-#
-# 3つ目の学び: あちらは `subcycles_per_beat` で**拍に対する速さ**を手ごとに
-# 変えている。同じ形でも速さが違えば別の役に見える。弧の周期を1〜4小節に
-# 散らした。
+# 参考元から引き継いだ知見:
+#   * **回転主体・並進は控えめ**。28cm の機体で並進 ±16mm は遠目に見えない。
+#     公式 dances library の20手も pitch 8 / roll 7 / y 4 / yaw 2 / z 1 / x 1。
+#   * **body_yaw が最も視認性が高い**（公式ライブラリは1つも使っていないが、
+#     この機体では 150° 使える唯一の軸）。
+#   * 構えはタダではない ―― ステュワート機構の動作点が移ってヤコビアンが
+#     変わるので、同じ打点動作に要る関節速度が最大 +22% 増える。
+#     `orchestra song build lamban --report` を必ず読むこと。
 PERSONAS: dict[str, Persona] = {
-    # 指揮者。動きは手続き生成のままで、構えだけ足す。唯一こちらを向いている。
+    # 指揮者 = djembefola（ソロ djembe）。合図とブレイクで全体を仕切る。
+    # 動きは手続き生成のままで、構えだけ足す。唯一こちらを向いている。
     "conductor": Persona(
-        stance=Stance(z_mm=5.0, antennas_deg=(-35.0, 35.0)),
+        stance=Stance(z_mm=4.0, antennas_deg=(-38.0, 38.0)),
         sweep=Sweep(),
         showcase_hits=0,
-        note="the only one facing you and watching everyone; turns its "
-             "whole body every 8 seconds",
+        note="faces the audience; beat patterns are generated, not authored",
     ),
-    # 主旋律。鍵盤なので正面寄り。見下ろして横へ渡る。
-    "celesta": Persona(
-        # 打点クリップ自体が速い（joint_vel 3.5 で全9役の最上位）ので、弧は
-        # 控えめに。y14 だと 3.80/4.0 まで行った。
-        # ★この役だけは足せない★ 打点が全9役で最も速く、素で 3.55/4.0。
-        # 構えを盛ると 3.93 まで行った（ヤコビアンが動くため）。90% を目安に
-        # 抑える。見分けは体の向きと顎の角度で足りる。
-        stance=Stance(z_mm=6.0, pitch_deg=7.0,
-                      antennas_deg=(-25.0, 25.0)),
-        sweep=Sweep(shape="sway", bars=4.0, y_mm=8.0, beat_yaw_deg=8.0, beat_period=4.0, beat_roll_deg=2.0),
+
+    # バラフォン。**横に一番広く渡る**。3オクターブの木琴を双バチで往復するので、
+    # 4小節かけて左右へ大きく移動しながら、うつむいて棒を見ている。
+    "balafon": Persona(
+        stance=Stance(z_mm=-6.0, pitch_deg=9.0, antennas_deg=(-22.0, 22.0)),
+        sweep=Sweep(shape="arc", bars=4.0, y_mm=18.0, z_mm=3.0, body_yaw_deg=10.0,
+                    beat_yaw_deg=13.0, beat_period=4.0, beat_roll_deg=4.0),
+        showcase_hits=6,
+        note="travels furthest sideways; looks down at the bars",
+    ),
+
+    # コラ。**ほぼ動かない。耳だけが別格に開く。** 21弦を両手の親指と人差し指で
+    # 弾く楽器で、奏者の体は動かず指だけが走る。その「指」をアンテナに担わせる。
+    "kora": Persona(
+        stance=Stance(z_mm=5.0, pitch_deg=2.0, antennas_deg=(-88.0, 88.0)),
+        sweep=Sweep(beat_yaw_deg=4.0, beat_period=4.0, beat_roll_deg=2.0),
+        showcase_hits=6,
+        note="the stillest robot; ears in a class of their own -- they play, "
+             "the head does not",
+    ),
+
+    # ンゴニ。**最も深く前傾し、最も速い1拍周期。** 小さな胴を抱え込むように
+    # 覗き込む姿勢。バラフォンと同じ音階を鳴らすので、姿勢で徹底的に離す。
+    "ngoni": Persona(
+        stance=Stance(z_mm=-8.0, pitch_deg=11.5, antennas_deg=(-16.0, 16.0)),
+        sweep=Sweep(shape="sway", bars=2.0, y_mm=8.0,
+                    beat_yaw_deg=7.0, beat_period=1.0, beat_roll_deg=3.0),
         showcase_hits=5,
-        note="nearly front-on, looking down at a keyboard, traversing "
-             "sideways over four bars",
+        note="leans in deepest and rides every beat",
     ),
-    # 対旋律。内を向いて、打った後に揺れが残る（クリップ側の特徴）。
-    "vibraphone": Persona(
-        stance=Stance(z_mm=2.0, pitch_deg=5.0, roll_deg=-4.0,
-                      antennas_deg=(-50.0, 50.0)),
-        sweep=Sweep(shape="tilt", bars=3.0, roll_deg=5.0, beat_yaw_deg=15.0, beat_period=3.0, beat_roll_deg=5.0),
-        showcase_hits=4,
-        note="turned inward; the only one that keeps ringing after the "
-             "strike. Three-bar cycle",
-    ),
-    # 小さく高い楽器。**唯一の顎上げ**。耳を立てている。
-    "glockenspiel": Persona(
-        # 高さは z ではなく **pitch（顎を上げる）** で出す。z は ±21mm しか
-        # 無いうえ副次と打点で 10mm 取られ、そもそも遠目に見えない。
-        # 「上を向いている台」は一目で分かる。
-        # この役はヤコビアンの効きが最も強く、素の 3.39 が構えを盛ると 3.90
-        # まで行った。body_yaw を 30->22 に落としてもほぼ動かず、効いていたのは
-        # **顎上げ（pitch）** のほうだった ―― 台を傾けると同じ打点により多くの
-        # 関節速度が要る。-10° -> -7° で 3.6 台に収まる。
-        stance=Stance(z_mm=4.0, pitch_deg=-7.0,
-                      antennas_deg=(-75.0, 75.0)),
-        sweep=Sweep(shape="circle", bars=4.0, y_mm=4.0, z_mm=2.0, beat_yaw_deg=6.0, beat_period=1.0, beat_roll_deg=2.0),
+
+    # タマ。**唯一ずっと体を傾げている。左右の耳が非対称。**
+    # 砂時計型の太鼓を脇に挟み、紐を締めて音程を変える楽器なので、
+    # 「片側に抱えている」姿勢そのものが見分けになる。
+    "tama": Persona(
+        stance=Stance(body_yaw_deg=-10.0, face_deg=7.0, roll_deg=-10.0,
+                      z_mm=2.0, antennas_deg=(-72.0, 12.0)),
+        sweep=Sweep(shape="tilt", bars=2.0, roll_deg=2.5,
+                    beat_yaw_deg=10.0, beat_period=2.0, beat_phase=0.25,
+                    beat_roll_deg=5.0),
         showcase_hits=6,
-        note="the only chin-up robot; ears held high, small circle",
+        note="permanently cocked to one side, holding the drum under an arm; "
+             "the only asymmetric ears",
     ),
-    # 大きく低い楽器。**9台で最も体を振り、最も深く見下ろす**。
-    "marimba": Persona(
-        stance=Stance(z_mm=-8.0, pitch_deg=11.0,
-                      antennas_deg=(-15.0, 15.0)),
-        sweep=Sweep(shape="arc", bars=4.0, y_mm=18.0, z_mm=3.0, body_yaw_deg=10.0, beat_yaw_deg=16.0, beat_period=2.0, beat_roll_deg=6.0),
-        showcase_hits=4,
-        note="swings hardest (-55 deg); low, wide, ears folded down",
-    ),
-    # アクセント。**唯一ほとんど静止していて、単発だけが鋭い**。
-    "woodblock": Persona(
-        stance=Stance(roll_deg=5.0,
-                      antennas_deg=(-70.0, 5.0)),
-        sweep=Sweep(beat_yaw_deg=17.0, beat_period=4.0, beat_roll_deg=4.0),
-        showcase_hits=4,
-        note="faces furthest out (+55 deg) and holds still; one ear up. "
-             "Moves only at the strike",
-    ),
-    # リズム。**唯一ずっと首を傾げている**。
-    "tambourine": Persona(
-        # チルトは roll と pitch の**合成**で効く。構え 8° + 弧 4° = 12° で、
-        # 打点クリップの roll 6.9° が乗る余地を残す。
-        stance=Stance(z_mm=4.0, roll_deg=8.0,
-                      antennas_deg=(-30.0, 30.0)),
-        sweep=Sweep(shape="tilt", bars=2.0, roll_deg=4.0, beat_yaw_deg=13.0, beat_period=2.0, beat_phase=0.25, beat_roll_deg=7.0),
+
+    # ジェンベ。**上下の振幅が最大。** 素手で打つ楽器なので、打点が最も
+    # 「落ちる」。円を描くのは bass / tone / slap で打つ位置が変わるため。
+    "djembe": Persona(
+        stance=Stance(z_mm=-5.0, pitch_deg=7.0, antennas_deg=(-30.0, 30.0)),
+        sweep=Sweep(shape="circle", bars=4.0, y_mm=6.0, z_mm=5.0,
+                    beat_yaw_deg=15.0, beat_period=2.0, beat_roll_deg=5.0),
         showcase_hits=6,
-        note="head permanently cocked, the tilt rocking on a two-bar cycle",
+        note="the deepest vertical strike; swings widest on the beat",
     ),
-    # 刻み。**唯一止まる瞬間が無い**。逆側へ傾ぐ。
-    "shaker": Persona(
-        stance=Stance(roll_deg=-8.0,
+
+    # ドゥンドゥンバ。**最も低く、最も遅く、最も大きい弧。** dunun 三兄弟の
+    # 最大で、8拍かけて1往復する。耳はほとんど動かさない ―― バチと鈴の楽器で、
+    # 上体の重さが見えるほうがそれらしい。
+    "dundunba": Persona(
+        stance=Stance(body_yaw_deg=14.0, face_deg=-6.0, z_mm=-8.0, pitch_deg=8.0,
+                      antennas_deg=(-13.0, 13.0)),
+        sweep=Sweep(shape="arc", bars=8.0, y_mm=18.0, z_mm=3.0, body_yaw_deg=12.0,
+                    beat_yaw_deg=15.0, beat_period=8.0, beat_roll_deg=6.0),
+        showcase_hits=4,
+        note="lowest, slowest, largest arc; the ears stay out of it",
+    ),
+
+    # サンバン。ドゥンドゥンバと**同じ形で、向きも位相も逆**。2台の dunun が
+    # 向かい合って掛け合っているように見せる。周期は半分（4拍）。
+    "sangban": Persona(
+        stance=Stance(body_yaw_deg=-14.0, face_deg=6.0, z_mm=-3.0, pitch_deg=5.0,
                       antennas_deg=(-20.0, 20.0)),
-        sweep=Sweep(shape="sway", bars=1.0, y_mm=12.0, roll_deg=4.0, beat_yaw_deg=7.0, beat_period=1.0, beat_phase=0.5, beat_roll_deg=6.0),
-        showcase_hits=8,
-        note="swings on every bar and never stops; tilts the opposite way",
+        sweep=Sweep(shape="arc", bars=4.0, y_mm=14.0, z_mm=3.0, body_yaw_deg=-10.0,
+                    beat_yaw_deg=13.0, beat_period=4.0, beat_phase=0.5,
+                    beat_roll_deg=5.0),
+        showcase_hits=5,
+        note="mirrors dundunba -- opposite facing, opposite phase, half the period",
     ),
-    # 彩り。**耳が別格に大きい**。頭はほとんど動かない。
-    "jingle_bells": Persona(
-        stance=Stance(z_mm=3.0, pitch_deg=-8.0,
-                      antennas_deg=(-95.0, 95.0)),
-        sweep=Sweep(beat_yaw_deg=14.0, beat_period=2.0, beat_phase=0.25, beat_roll_deg=4.0),
-        showcase_hits=6,
-        note="ears in a class of their own; the head barely moves, the "
-             "ears do the playing",
+
+    # カリニャン。**唯一止まる瞬間が無い。** 金属管を擦る楽器なので、
+    # 動いていること自体が発音。1拍周期で、傾きは他と逆向き。
+    "karignan": Persona(
+        stance=Stance(roll_deg=7.0, z_mm=1.0, antennas_deg=(-26.0, 26.0)),
+        sweep=Sweep(shape="sway", bars=1.0, y_mm=12.0, roll_deg=3.5,
+                    beat_yaw_deg=7.0, beat_period=1.0, beat_phase=0.5,
+                    beat_roll_deg=6.0),
+        showcase_hits=8,
+        note="never stops -- scraping IS the sound; tilts the opposite way",
     ),
 }
 
-# song.yaml が `bells` のような別名で書いていても引けるように。
-ALIASES = {"bells": "jingle_bells", "celeste": "celesta", "vibes": "vibraphone",
-           "glocken": "glockenspiel", "voice": "celesta"}
+# song.yaml が別名で書いていても引けるように。
+ALIASES = {"bala": "balafon", "bala fon": "balafon",
+           "tamani": "tama", "nege": "karignan", "kariyan": "karignan",
+           "dunun": "dundunba", "dundun": "dundunba", "doundounba": "dundunba",
+           "djeli ngoni": "ngoni", "lead": "conductor", "djembefola": "conductor"}
 
 DEFAULT = Persona(note="default -- no stance")
 
@@ -542,27 +548,12 @@ def wait_blend(t: np.ndarray, t_from: float, t_until: float,
 
 
 def greeting(t: np.ndarray, t0: float, span: float,
-             scan_to: float = 0.0, turn_deg: float = 0.0,
-             turn_s: float = 1.6) -> np.ndarray:
-    """指揮者の挨拶。客席へ一礼して、そのあとアンサンブルを見渡す。
-
-    指揮者はアンサンブルを向いて立っているので、そのまま礼をすると楽器の台に
-    頭を下げることになる。`turn_deg` を渡すと客席へ向き直って礼をし、挨拶の枠の
-    終わりまでに戻る。**曲の長さを変えないよう**、回り始めは `t0` を待たず
-    プログラムの先頭からにする。頭も一緒に回すので rel_yaw は消費しない。
-    """
+             scan_to: float = 0.0) -> np.ndarray:
+    """指揮者の挨拶。客席へ一礼して、そのあとアンサンブルを見渡す。"""
     out = np.zeros((len(t), N_CHANNELS))
     if span <= 0:
         return out
-    end = t0 + span
-    bow_from, bow_to = t0, t0 + span * 0.6
-    if turn_deg:
-        bow_from, bow_to = turn_s, end - turn_s
-        facing = (radians(turn_deg) * _ease(t, 0.0, turn_s)
-                  * (1.0 - _ease(t, bow_to, end)))
-        out[:, CH_BODY_YAW] += facing
-        out[:, CH_YAW] += facing
-    bow = _segment(t, bow_from, bow_to)
+    bow = _segment(t, t0, t0 + span * 0.6)
     out[:, CH_Z] += -0.010 * bow
     out[:, CH_PITCH] += np.radians(14.0) * bow
     out[:, CH_ANT_R] += np.radians(-30.0) * bow

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """ステムを1本に混ぜて、9台に配る前に耳で確かめる。
 
-    python tools/preview_song.py songs/small_world
-    python tools/preview_song.py songs/small_world --only voice_lead voice_harmony
+    python tools/preview_song.py songs/lamban
+    python tools/preview_song.py songs/lamban --only balafon kora
 
 9台へ配備して走らせるのは1回あたり2分近く掛かるうえ、部屋の音響が混ざる。
 編曲や歌の出来を判断するだけなら、手元で混ぜたほうが速くて正確に分かる。
@@ -28,7 +28,7 @@ from orchestra.music.score import load_score  # noqa: E402
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("song", nargs="?", default="songs/small_world")
+    ap.add_argument("song", nargs="?", default="songs/lamban")
     ap.add_argument("--out", default=None, help="defaults to <song>/preview.wav")
     ap.add_argument("--only", nargs="*", default=None, help="mix only these parts")
     ap.add_argument("--seconds", type=float, default=0.0, help="write only this many seconds from the start")

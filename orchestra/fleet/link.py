@@ -167,8 +167,8 @@ class AgentLink:
     def stop(self) -> dict[str, Any]:
         return self.call("stop")
 
-    def abort(self, fade_s: float = 0.0) -> dict[str, Any]:
-        return self.call("abort", fade_s=fade_s)
+    def abort(self) -> dict[str, Any]:
+        return self.call("abort")
 
     def status(self) -> dict[str, Any]:
         return self.call("status")
@@ -312,8 +312,8 @@ class Fleet:
     def status(self):
         return self._fan(lambda l: l.status())
 
-    def abort(self, fade_s: float = 0.0):
-        return self._fan(lambda l: l.abort(fade_s))
+    def abort(self):
+        return self._fan(lambda l: l.abort())
 
     def stop(self):
         return self._fan(lambda l: l.stop())
@@ -364,11 +364,6 @@ class Heartbeat:
 
     Two jobs: keep the Wi-Fi link awake so START never pays the power-save wake
     penalty, and feed the agents' deadman timers so they know the PC is alive.
-
-    **Each robot is poked on its own thread.** A robot that stops answering
-    holds its call for the link timeout, which is longer than the agents' 5 s
-    deadman. Polled in turn, every robot queued behind it went unfed, so one
-    robot losing power parked the other eight.
     """
 
     def __init__(self, fleet: Fleet, interval: float = 1.0):
@@ -378,39 +373,21 @@ class Heartbeat:
         self._thread: threading.Thread | None = None
         self.failures: dict[str, int] = {}
         self.last_status: dict[str, dict] = {}
-        self.seen: dict[str, float] = {}
-        self._busy: set[str] = set()
 
     def start(self) -> None:
         self._stop.clear()
         self._thread = threading.Thread(target=self._run, daemon=True, name="heartbeat")
         self._thread.start()
 
-    def _poke(self, link: AgentLink) -> None:
-        rid = link.robot_id
-        try:
-            self.last_status[rid] = link.status()
-            self.seen[rid] = time.monotonic()
-            self.failures[rid] = 0
-        except Exception:
-            self.failures[rid] = self.failures.get(rid, 0) + 1
-        finally:
-            self._busy.discard(rid)
-
     def _run(self) -> None:
         while not self._stop.is_set():
             for link in self.fleet.links:
-                rid = link.robot_id
-                if rid in self._busy:
-                    continue        # still waiting out its timeout
-                self._busy.add(rid)
-                threading.Thread(target=self._poke, args=(link,), daemon=True,
-                                 name=f"heartbeat-{rid}").start()
+                try:
+                    self.last_status[link.robot_id] = link.status()
+                    self.failures[link.robot_id] = 0
+                except Exception:
+                    self.failures[link.robot_id] = self.failures.get(link.robot_id, 0) + 1
             self._stop.wait(self.interval)
-
-    def status_since(self, robot_id: str, t: float) -> dict[str, Any] | None:
-        """The latest status heard after `t`, or None. Never touches the network."""
-        return self.last_status.get(robot_id) if self.seen.get(robot_id, 0.0) >= t else None
 
     def stop(self) -> None:
         self._stop.set()

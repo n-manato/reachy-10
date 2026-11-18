@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """実サンプルから、ロボット1台ごとの音声ステムを作る。
 
-    python tools/make_stems.py songs/small_world
+    python tools/make_stems.py songs/lamban
 
 物理楽器を廃止したので、**ここが出す音がそのまま観客に聞こえる音**になる。
 合成音ではなく `gm.dls` から抽出した実録音（Roland 音源）を使う
@@ -35,14 +35,12 @@ from orchestra.audio.render import (  # noqa: E402
     render_stem,
     write_wav_f32,
 )
-from orchestra.audio.sampler import SampleLibrary, midi_to_hz  # noqa: E402
+from orchestra.audio.sampler import SampleLibrary  # noqa: E402
 from orchestra.config import Context  # noqa: E402
 from orchestra.music.midi import note_name  # noqa: E402
 from orchestra.motion.compile import Placement  # noqa: E402
 from orchestra.motion.schema import PATTERN, ClipLibrary  # noqa: E402
-from orchestra.audio.lyrics import plan_counterpoint, plan_melody  # noqa: E402
-from orchestra.audio import svs  # noqa: E402
-from orchestra.music.score import KIND_CONDUCTOR, KIND_MIDI, KIND_VOICE, load_score  # noqa: E402
+from orchestra.music.score import KIND_CONDUCTOR, KIND_MIDI, load_score  # noqa: E402
 from orchestra.music.timeline import NoteEvent  # noqa: E402
 
 
@@ -63,10 +61,14 @@ def events_from_clip_anchors(part, score, lib: ClipLibrary) -> list[NoteEvent]:
     end = (part.end_bar * bpb) if part.end_bar is not None else tl.total_beats
     pl = Placement(clip=clip, start_beat=start, end_beat=end)
     step = clip.loop_beats / max(1, len(clip.anchors))
+    # `zone_cycle` があれば、アンカーごとにゾーン（＝打法）を巡回させる。
+    # カリニャンは往と復で音が違うので、全部を同じ音で鳴らすと機械的になる。
+    cycle = part.zone_cycle or [60]
     return [
-        NoteEvent(beat=b, pitch=60, velocity=100 if (b % bpb) < 1e-6 else 82,
+        NoteEvent(beat=b, pitch=cycle[i % len(cycle)],
+                  velocity=100 if (b % bpb) < 1e-6 else 82,
                   duration_beats=step, track=part.name)
-        for b in pl.anchor_beats()
+        for i, b in enumerate(pl.anchor_beats())
     ]
 
 
@@ -114,68 +116,39 @@ def showcase_events(part, score, base_events: list[NoteEvent]) -> list[NoteEvent
     return out
 
 
-def conductor_bed(score, lib: SampleLibrary) -> tuple[list[NoteEvent], Voice]:
-    """指揮者ロボットが鳴らすカウントイン + 和声のベッド。
+def lead_calls(score, lib: SampleLibrary) -> tuple[list[NoteEvent], Voice]:
+    """r01（指揮者 = djembefola）が鳴らす音。
 
-    カウントインは観客にも演奏者にも「これから始まる」を伝える。
-    最後のクリックが T0（1拍目）にちょうど重なるよう、負の拍に置く。
+    参考元の指揮者は warm_pad の和音ベッドを敷いていたが、マンデの合奏に
+    持続和音は無い。ここでは実際のアンサンブルどおり、**ソロ djembe の
+    合図(call)とブレイク**を鳴らす。実アンサンブルでもソロ djembe は伴奏
+    djembe とは別の奏者・別の役で、曲の切り替えを全部この人が出す。
+
+    音型は自前で書かず、`tools/make_lamban.py` が MIDI の "Lead" トラックに
+    書いたものを読む ―― 指揮の合図と鳴る音を2箇所に書くと、いつか必ずずれる。
+
+    カウントインだけはここで足す。負の拍に置くので本編の小節を侵さない。
     """
     tl = score.timeline
-    bpb = tl.meter.beats_per_bar
-    evs: list[NoteEvent] = []
+    evs = [NoteEvent(beat=e.beat, pitch=e.pitch, velocity=e.velocity,
+                     duration_beats=e.duration_beats, track=e.track)
+           for e in tl.events_for(track="Lead")]
 
-    # カウントイン4つ。最後が拍0に重なる。
+    # カウントイン4つ。最後が最も強い。ジェンベの tone(62) で軽く入れる。
     for k in range(4):
-        evs.append(NoteEvent(beat=-(4 - k), pitch=84, velocity=110 if k == 3 else 78,
+        evs.append(NoteEvent(beat=-(4 - k), pitch=62,
+                             velocity=104 if k == 3 else 64,
                              duration_beats=0.2, track="count"))
-
-    # 小節ごとの和音。旋律の D-A の音域を支える程度に控えめ。
-    #
-    # ★終止で必ず止める★ このベッドは warm_pad の持続音を小節ごとに繋いだ
-    # ものなので、減衰せず**ドローンになる**。曲の最後まで流しっぱなしにすると、
-    # 演奏が終わったあとも一定の音が残り「変な音で、演奏していない時間を
-    # ごまかしている」ように聞こえる（実測: 終止和音 125.9s のあと 129.9s まで
-    # 振幅 0.10 のまま鳴り続けていた）。
-    last_bar = tl.n_bars
-    if score.finale:
-        last_bar = int(float(score.finale.get("at_bar", tl.n_bars)))
-    fin_beat = (float(score.finale.get("at_bar", tl.n_bars)) * bpb
-                if score.finale else tl.total_beats)
-    chords = [(50, 53, 57), (50, 53, 57), (48, 52, 55), (50, 53, 57)]
-    for bar in range(last_bar):
-        base = bar * bpb
-        for p in chords[bar % len(chords)]:
-            evs.append(NoteEvent(beat=base, pitch=p, velocity=48,
-                                 duration_beats=bpb * 0.92, track="bed"))
-
-    if score.finale:
-        # 終止が小節の途中にあると、最後の小節ぶんが足りずに和声が抜ける。
-        # 終止までを埋める1つを足す（1.5秒の穴が空いていた）。
-        gap = fin_beat - last_bar * bpb
-        if gap > 0.25:
-            for p in chords[last_bar % len(chords)]:
-                evs.append(NoteEvent(beat=last_bar * bpb, pitch=p, velocity=48,
-                                     duration_beats=gap, track="bed"))
-        # 指揮者も終止和音に加わる。ドローンを切ったぶん、ここで終わりを支える。
-        # velocity は控えめに ―― 70 だとレンダリング段で 0.99 まで行った。
-        hold = float(score.finale.get("hold_beats", 4.0))
-        for p in (41, 53, 57):
-            evs.append(NoteEvent(beat=fin_beat, pitch=p, velocity=52,
-                                 duration_beats=hold, track="bed"))
-    return evs, make_voice(lib, "warm_pad")
+    return evs, make_voice(lib, "djembe")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("song", nargs="?", default="songs/small_world")
-    ap.add_argument("--samples", default="samples/generated")
+    ap.add_argument("song", nargs="?", default="songs/lamban")
+    ap.add_argument("--samples", default="samples/mande")
     ap.add_argument("--no-balance", action="store_true",
                     help="skip the ensemble-level balancing pass")
-    ap.add_argument("--voicebank", default="models/diffsinger/nessie",
-                    help="singing-synthesis model (fetch with tools/fetch_singer_model.py)")
-    ap.add_argument("--steps", type=int, default=0,
-                    help="diffusion steps; more is better and slower (default: per voice)")
     args = ap.parse_args()
 
     root = Path(__file__).resolve().parent.parent
@@ -199,72 +172,12 @@ def main() -> int:
     files: dict[str, str] = {}
     infos: dict[str, str] = {}
 
-    # 歌うパートは経路が別。喋った行を、音程と長さだけ差し替えて歌にする
-    # （合唱サンプルを鳴らすのとも、音節を貼り合わせるのとも根本的に違う）。
-    melody_events = sorted(
-        [e for e in tl.events if e.track == "Melody"], key=lambda e: e.beat)
-    melody_plans = plan_melody(melody_events, tl.meter.beats_per_bar)
-
-    # 歌声合成のモデルは 370MB あって読み込みに時間が掛かる。歌うパートが
-    # 無い曲もあるので、**実際に要求されたときだけ**開いて使い回す。
-    _engine: list = []
-
-    def engine():
-        if not _engine:
-            vb_root = (root / args.voicebank
-                       if not Path(args.voicebank).is_absolute() else Path(args.voicebank))
-            vb = svs.Voicebank.load(vb_root)
-            print(f"  voice model: {vb_root.name}  {len(vb.phonemes)} phonemes, "
-                  f"{len(vb.speakers)} voices, {vb.sample_rate}Hz")
-            _engine.append(svs.Engine(vb))
-        return _engine[0]
-
     for name, part in score.parts.items():
         if not part.audio:
             continue
 
-        if part.kind == KIND_VOICE and (part.voice_preset or "") in svs.VOICE_STYLES:
-            preset = part.voice_preset
-            style = svs.styles_for(engine().vb)[preset]
-            if args.steps:
-                style = svs.SvsStyle(**{**style.__dict__, "steps": args.steps})
-            evs = sorted(score.events_for_part(part), key=lambda e: e.beat)
-            if part.track == "Melody":
-                plans = melody_plans
-            else:
-                # 対旋律は主旋律の Verse を8小節ずらして歌う。音符の数が
-                # 一致しない（32 対 39）ので、拍の位置で行を引き当てる。
-                plans = plan_counterpoint(evs, melody_plans,
-                                          beat_shift=8 * tl.meter.beats_per_bar)
-
-            def tick(k, n, sung, _name=name):
-                print(f"\r       {_name}: line {k}/{n}  rms {sung.rms:.3f}",
-                      end="", flush=True)
-
-            stem = svs.render_sung_stem(
-                plans, engine(), tl.tempo, duration_s=duration,
-                lead_in_s=score.t0_s, tail_s=score.tail_total_s,
-                gain=part.gain, transpose=part.transpose, style=style,
-                progress=tick)
-            print("\r" + " " * 60 + "\r", end="")
-
-            from orchestra.audio.render import RenderResult, _resample_to_output
-            audio = _resample_to_output(stem.audio, stem.rate, OUTPUT_RATE)
-            peak = float(np.abs(audio).max()) if len(audio) else 0.0
-            r = RenderResult(
-                audio=np.column_stack([audio, audio]).astype(np.float32),
-                peak=peak, rms=float(np.sqrt(np.mean(audio**2))) if len(audio) else 0.0,
-                n_notes=len(evs), warnings=stem.warnings)
-            results[name] = r
-            files[name] = part.audio
-            print(f"  ok   {name:<15} {len(evs):>3} notes {stem.n_lines:>2} lines"
-                  f" {stem.n_phones:>4} phones f0 {stem.f0_lo:.0f}-{stem.f0_hi:.0f}Hz"
-                  f" voice {style.speaker} peak {r.peak:.3f}"
-                  + ("\n       " + "; ".join(r.warnings) if r.warnings else ""))
-            continue
-
         if part.kind == KIND_CONDUCTOR:
-            evs, voice = conductor_bed(score, lib)
+            evs, voice = lead_calls(score, lib)
         else:
             preset = part.voice_preset or part.instrument
             try:
@@ -273,7 +186,7 @@ def main() -> int:
                 print(f"  --   {name:<15} {e}")
                 continue
             voice.transpose = part.transpose
-            if part.kind in (KIND_MIDI, KIND_VOICE) or part.pattern:
+            if part.kind == KIND_MIDI or part.pattern:
                 evs = score.events_for_part(part)
             else:
                 # ループ型クリップ: リズムはクリップの anchors にある

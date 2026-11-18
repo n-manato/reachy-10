@@ -1,0 +1,129 @@
+{
+  "name": "karignan_scrape",
+  "version": 1,
+  "instrument": "karignan",
+  "description": "カリニャン（溝を刻んだ金属管）を金属棒で擦る（エアー）。\n\n見分けの要点: **9台で唯一、止まる瞬間が無い**。擦ることそのものが発音なので打点という概念が無く、左右への往復が途切れない。**1往復＝2打**（往と復）なので、8分で鳴らしても動きは4分周期で済む ―― 速い刻みを安全に見せられる唯一のパートでもある。\n\nアンカーは y が 0 を通過する瞬間、つまり**最も速く動いている瞬間**に置いてある。端で止まる瞬間ではない ―― 擦る音が出るのは動いている最中だから。\n\nループ型なので周回の継ぎ目が中立で揃っている必要がある（先頭と末尾が同じ値）。",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "pattern",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.0,
+    0.5
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {
+          "y": 0.0,
+          "roll": 0.0,
+          "z": 0.0
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "pose": {
+          "y": 4.4,
+          "roll": 2.6,
+          "z": -0.9
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "pose": {
+          "y": 0.0,
+          "roll": 0.0,
+          "z": 0.0
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.75,
+        "pose": {
+          "y": -4.4,
+          "roll": -2.6,
+          "z": -0.9
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 1.0,
+        "pose": {
+          "y": 0.0,
+          "roll": 0.0,
+          "z": 0.0
+        },
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "value": 2.4,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.75,
+        "value": -2.4,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 1.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "value": [
+          -16.0,
+          16.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.75,
+        "value": [
+          -16.0,
+          16.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 1.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

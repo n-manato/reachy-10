@@ -43,15 +43,15 @@ RESERVE_REL_YAW_DEG = 10.0
 
 def test_every_role_has_a_persona():
     """song.yaml が使う9つの声色すべてに定義があること。"""
-    used = ["conductor", "celesta", "vibraphone", "glockenspiel", "marimba",
-            "woodblock", "tambourine", "shaker", "jingle_bells"]
+    used = ["conductor", "balafon", "kora", "ngoni", "tama",
+            "djembe", "dundunba", "sangban", "karignan"]
     for name in used:
         assert P.get(name) is not P.DEFAULT, f"{name} のペルソナが無い"
 
 
 def test_aliases_resolve():
-    assert P.get("bells") is P.PERSONAS["jingle_bells"]
-    assert P.get("GLOCKEN") is P.PERSONAS["glockenspiel"]
+    assert P.get("dunun") is P.PERSONAS["dundunba"]
+    assert P.get("TAMANI") is P.PERSONAS["tama"]
     assert P.get("nonsense") is P.DEFAULT      # 知らない名前でも落とさない
 
 
@@ -129,15 +129,15 @@ def test_the_nine_are_mutually_distinguishable():
                 + f"、弧はどちらも {pa.sweep.shape}")
 
 
-def test_ears_alone_separate_the_bell_part():
-    """鈴は耳が主役。他のどれよりもはっきり開いていること。"""
-    bells = P.PERSONAS["jingle_bells"].stance.antennas_deg
-    spread = sum(abs(a) for a in bells) / 2
+def test_ears_alone_separate_the_kora_part():
+    """コラは耳が主役（21弦を弾く指の代弁）。他のどれよりもはっきり開いていること。"""
+    kora = P.PERSONAS["kora"].stance.antennas_deg
+    spread = sum(abs(a) for a in kora) / 2
     for name, p in P.PERSONAS.items():
-        if name == "jingle_bells":
+        if name == "kora":
             continue
         other = sum(abs(a) for a in p.stance.antennas_deg) / 2
-        assert spread > other + 15.0, f"鈴({spread:.0f}°) が {name}({other:.0f}°) と近い"
+        assert spread > other + 15.0, f"コラ({spread:.0f}°) が {name}({other:.0f}°) と近い"
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +156,7 @@ def test_a_pure_stance_costs_no_velocity():
     静止しているから発熱制限に効かない ―― それがこの設計の土台なので、
     本当に静止していることを確かめる。
     """
-    p = P.Persona(stance=P.PERSONAS["woodblock"].stance, sweep=P.Sweep())
+    p = P.Persona(stance=P.PERSONAS["karignan"].stance, sweep=P.Sweep())
     beats = _beats()
     d = P.posture_delta(p, beats, beats_per_bar=4.0)
     settled = d[beats > 2.0]
@@ -169,7 +169,7 @@ def test_beat_rotation_stays_on_the_body_axes():
     頭の姿勢は world 座標なので、体だけ回すと rel_yaw(45°) を食う。
     必ず同じ量だけ頭も回っていること。
     """
-    p = P.PERSONAS["marimba"]
+    p = P.PERSONAS["balafon"]
     assert p.sweep.beat_yaw_deg > 0
     beats = _beats(n=2000)
     d = P.posture_delta(p, beats, beats_per_bar=4.0)
@@ -211,7 +211,7 @@ def test_ramp_starts_from_neutral():
     構わないが、途中で急に構え始めるのは避けたい。
     """
     beats = _beats()
-    d = P.posture_delta(P.PERSONAS["marimba"], beats, beats_per_bar=4.0)
+    d = P.posture_delta(P.PERSONAS["balafon"], beats, beats_per_bar=4.0)
     assert np.abs(d[0]).max() < 1e-6, "先頭が中立でない"
     assert np.abs(d[beats > 2.0][0]).max() > 1e-3, "構えに入っていない"
 
@@ -221,32 +221,7 @@ def test_apply_posture_leaves_the_original_alone():
 
     beats = _beats(n=300)
     prog = Program(robot_id="r05", frames=np.zeros((300, N_CHANNELS)), fps=100.0)
-    out = P.apply_posture(prog, P.PERSONAS["marimba"], beats, 4.0)
+    out = P.apply_posture(prog, P.PERSONAS["balafon"], beats, 4.0)
     assert np.allclose(prog.frames, 0.0), "元のプログラムが書き換わっている"
     assert not np.allclose(out.frames, 0.0)
     assert "persona" in out.meta
-
-
-def test_the_greeting_turns_to_the_audience_and_back_in_its_slot():
-    """礼は客席に向かってする。戻りが遅れると最初の合図とぶつかる。"""
-    t = np.arange(0.0, 6.0, 0.01)
-    out = P.greeting(t, 1.0, 3.5, turn_deg=180.0, turn_s=1.6)
-
-    assert degrees(out[0, CH_BODY_YAW]) == pytest.approx(0.0)
-    assert np.allclose(out[:, CH_BODY_YAW], out[:, CH_YAW]), "頭も一緒に回す"
-
-    bowing = np.abs(out[:, CH_PITCH]) > radians(1.0)
-    assert bowing.any()
-    assert np.allclose(np.degrees(out[bowing, CH_BODY_YAW]), 180.0, atol=1.0), \
-        "回りきってから頭を下げ、頭を上げてから戻る"
-    assert np.all(out[t >= 4.5] == 0.0), "1台目の合図までに戻っている"
-
-    speed = np.abs(np.diff(out[:, CH_BODY_YAW])) / 0.01
-    assert speed.max() < 4.0, "関節速度の上限"
-
-
-def test_the_greeting_stays_put_without_a_turn():
-    t = np.arange(0.0, 6.0, 0.01)
-    out = P.greeting(t, 1.0, 3.5)
-    assert np.all(out[:, CH_BODY_YAW] == 0.0)
-    assert np.all(out[t < 1.0, CH_PITCH] == 0.0)

@@ -263,10 +263,6 @@ class Agent:
         """Stops the CURRENT playback. Cleared again by every `start`."""
 
         self._abort = threading.Event()
-        self._fade_s = 0.0
-        self._cut = threading.Event()
-        """Ends a fade-out now. The emergency stop must not wait for one."""
-
         self._shutdown = threading.Event()
         """Process is going away. Distinct from `_stop` on purpose: the deadman
         watchdog must survive an abort. An earlier version had it watching
@@ -461,7 +457,6 @@ class Agent:
         if p is None:
             raise RuntimeError("nothing loaded -- call load first")
 
-        self._cut.clear()
         want_media = bool(p.audio_file)
         self.connect(want_media)
         if self.dry_run:
@@ -537,7 +532,6 @@ class Agent:
 
         Re-arming reconnects, so nothing is lost by letting go here.
         """
-        self._cut.set()
         self._stop.set()
         self._stop_audio()
         self.audio_stream = None
@@ -622,8 +616,6 @@ class Agent:
 
         self._stop.clear()
         self._abort.clear()
-        self._cut.clear()
-        self._fade_s = 0.0
         self._t0_local = t0_local
         self.touch()
 
@@ -677,26 +669,9 @@ class Agent:
         self._stop.set()
         return {"stopping": True}
 
-    def op_abort(self, req: dict) -> dict:
-        """End the take: fade out over `fade_s`, or ramp to neutral without it.
-
-        An abort with no `fade_s` also cuts short a fade already running, which
-        is how the emergency stop gets through.
-        """
-        self._fade_s = fade_s = max(0.0, float(req.get("fade_s", 0.0)))
-        if not fade_s:
-            self._cut.set()
+    def op_abort(self, _req: dict) -> dict:
         self._abort.set()
         self._stop.set()
-
-        # Armed but not started: no playback thread is there to see the flags,
-        # and the robot would otherwise stand holding the start pose.
-        p = self.program
-        started = self._play_thread is not None and self._play_thread.is_alive()
-        if fade_s and p is not None and self.state == STATE_ARMED and not started:
-            self._set_state(STATE_ABORTED)
-            threading.Thread(target=self._fade_out, args=(p, None, fade_s),
-                             name="fade-out", daemon=True).start()
         return {"aborting": True}
 
     def op_status(self, _req: dict) -> dict:
@@ -756,7 +731,7 @@ class Agent:
                     log.error("could not schedule audio: %s", e)
 
             if not sleep_until(t0, self._stop):
-                self._finish_early(p)
+                self._finish_early()
                 return
 
             self._set_state(STATE_PLAYING)
@@ -797,10 +772,7 @@ class Agent:
                     break
 
             if self._abort.is_set():
-                if self._fade_s > 0:
-                    self._fade_out(p, t0, self._fade_s)
-                else:
-                    self._ramp_to_neutral(p)
+                self._ramp_to_neutral(p)
                 self._set_state(STATE_ABORTED)
             else:
                 if n:
@@ -839,65 +811,6 @@ class Agent:
             except Exception as e:
                 log.warning("could not stop the audio: %s", e)
 
-    def _send_pose(self, row: np.ndarray) -> None:
-        """Command a pose computed on the fly rather than a precomputed frame."""
-        from reachy_mini.io.protocol import SetFullTargetCmd
-
-        head = head_matrices(row[None, CH_X : CH_YAW + 1])[0]
-        self.reachy.client.send_command(
-            SetFullTargetCmd(
-                head=head.flatten().tolist(),
-                antennas=[float(row[CH_ANT_R]), float(row[CH_ANT_L])],
-                body_yaw=float(row[CH_BODY_YAW]),
-            )
-        )
-
-    def _fade_out(self, p: Program, t0: float | None, fade_s: float) -> None:
-        """Stop button: let the take die away instead of cutting it off.
-
-        The piece keeps playing underneath and is mixed into its own closing
-        pose, the `frames*(1-w) + target*w` the ending is built with, so the
-        motion shrinks as the head goes down. The target is the last frame and
-        not the bow because that is the park pose: the one place the head can
-        be left down with the torque off, already through the `song build`
-        safety gate.
-
-        `t0` of None means the take never started, so the head goes down from
-        the start pose with nothing playing underneath.
-
-        `_cut` ends this at once, so the emergency stop never waits for a fade.
-        """
-        begin = time.monotonic()
-        end = begin + fade_s
-        if self.audio_stream is not None and not self.dry_run:
-            try:
-                log.info("audio fading: %s", self.audio_stream.fade_out(end))
-            except Exception as e:
-                log.warning("could not fade the audio: %s", e)
-
-        live = not self.dry_run and self.reachy is not None and p.n_frames > 0
-        try:
-            while not (self._cut.is_set() or self._shutdown.is_set()):
-                now = time.monotonic()
-                if now >= end:
-                    break
-                if live:
-                    row = p.frames[0 if t0 is None else p.frame_index_at(now - t0)]
-                    w = minjerk((now - begin) / fade_s)
-                    self._send_pose(row + (p.frames[-1] - row) * w)
-                self._cut.wait(1.0 / p.fps)
-            if live and not self._cut.is_set():
-                self._send_pose(p.frames[-1])
-        except Exception as e:
-            log.warning("fade-out failed: %s", e)
-
-        self._stop_audio()
-        if live:
-            try:
-                self.reachy.disable_motors()
-            except Exception:
-                pass
-
     def _ramp_to_neutral(self, p: Program | None) -> None:
         """Graceful abort: ease back to the start pose, then cut torque.
 
@@ -917,7 +830,17 @@ class Agent:
             steps = max(2, int(self.abort_ramp_s * p.fps))
             for i in range(steps + 1):
                 w = minjerk(i / steps)
-                self._send_pose(a + (b - a) * w)
+                row = a + (b - a) * w
+                head = head_matrices(row[None, CH_X : CH_YAW + 1])[0]
+                from reachy_mini.io.protocol import SetFullTargetCmd
+
+                self.reachy.client.send_command(
+                    SetFullTargetCmd(
+                        head=head.flatten().tolist(),
+                        antennas=[float(row[CH_ANT_R]), float(row[CH_ANT_L])],
+                        body_yaw=float(row[CH_BODY_YAW]),
+                    )
+                )
                 time.sleep(1.0 / p.fps)
         except Exception as e:
             log.warning("abort ramp failed: %s", e)
@@ -926,12 +849,7 @@ class Agent:
         except Exception:
             pass
 
-    def _finish_early(self, p: Program) -> None:
-        if self._abort.is_set() and self._fade_s > 0:
-            # Stopped in the countdown. Nothing has sounded, so there is
-            # nothing to fade, and what is scheduled must not start.
-            self._stop_audio()
-            self._fade_out(p, None, self._fade_s)
+    def _finish_early(self) -> None:
         self._set_state(STATE_ABORTED if self._abort.is_set() else STATE_IDLE)
 
     # -- deadman ---------------------------------------------------------

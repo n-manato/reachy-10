@@ -26,7 +26,7 @@ from ..motion.program import AudioSpec, Program
 from ..motion.schema import PATTERN, TRIGGER, Clip, ClipLibrary
 from ..motion.validate import ValidationReport, validate_clip, validate_program
 from ..music.score import (
-    KIND_CONDUCTOR, KIND_IDLE, KIND_MIDI, KIND_VOICE, Part, Score, ScoreError,
+    KIND_CONDUCTOR, KIND_IDLE, KIND_MIDI, Part, Score, ScoreError,
 )
 
 
@@ -51,9 +51,7 @@ def _prologue_epilogue(score: Score, part: Part | None, times: np.ndarray,
         order = list(intro.get("order") or [])
         first = lead + greet
         if is_conductor:
-            out += persona.greeting(times, lead, greet, scan_to=0.0,
-                                    turn_deg=float(intro.get("greet_turn_deg", 0.0)),
-                                    turn_s=float(intro.get("greet_turn_s", 1.6)))
+            out += persona.greeting(times, lead, greet, scan_to=0.0)
             # 台ごとに合図を出す。「指示 -> 応答」が見えるようにする。
             for i in range(len(order)):
                 toward = (2.0 * i / max(len(order) - 1, 1)) - 1.0
@@ -174,7 +172,7 @@ def _placements_for_part(
 
     placements: list[Placement] = []
 
-    if clip.placement == PATTERN and part.kind not in (KIND_MIDI, KIND_VOICE):
+    if clip.placement == PATTERN and part.kind != KIND_MIDI:
         # A looping groove is driven by the clip's own internal rhythm, so the
         # part needs no note list at all -- and asking for one would force
         # authors to write a `pattern` string that nothing reads.

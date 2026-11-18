@@ -168,7 +168,7 @@ class SampleLibrary:
         man_path = self.root / "manifest.json"
         if not man_path.exists():
             raise FileNotFoundError(
-                f"{man_path} is missing. Run `python tools/extract_samples.py` first."
+                f"{man_path} is missing. Run `python tools/make_mande_samples.py` first."
             )
         self.manifest = json.loads(man_path.read_text(encoding="utf-8"))
 
@@ -193,8 +193,12 @@ class SampleLibrary:
             ))
         if not zones:
             raise ValueError(f"{name}: not a single usable zone")
-        inst = Instrument(name=name, zones=zones, kind=kind)
-        if auto_tune:
+        # `tuned` はマニフェスト側の申告。合成で音律を焼き込んだ楽器
+        # （7平均律のバラフォン、打法をゾーンにした太鼓）は、12平均律からの
+        # ずれを「誤差」として測られると台無しになるので auto_tune を飛ばす。
+        pre_tuned = bool(entry.get("tuned", False))
+        inst = Instrument(name=name, zones=zones, kind=kind, tuned=pre_tuned)
+        if auto_tune and not pre_tuned:
             inst.auto_tune()
         return inst
 

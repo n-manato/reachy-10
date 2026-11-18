@@ -103,6 +103,11 @@ class DaemonClient:
         self.timeout = timeout
         self.base = f"http://{ip}:{port}"
         self._session = requests.Session()
+        # The robots are on the same LAN. On Windows `requests` picks the
+        # WinINET proxy out of the registry, and a campus proxy cannot route to
+        # 192.168.3.0/24 -- every daemon then reports `unknown` as if it were
+        # down. Nothing on this session should ever go through a proxy.
+        self._session.trust_env = False
 
     # -- primitives ------------------------------------------------------
     def _get(self, path: str, timeout: float | None = None) -> Any:

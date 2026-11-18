@@ -1,0 +1,104 @@
+{
+  "name": "balafon_strike",
+  "version": 1,
+  "instrument": "balafon",
+  "description": "バラフォンを双バチで叩く（エアー）。\n\n見分けの要点: **横に一番広く渡る**。3オクターブ21枚の木琴を左右に移動しながら叩く楽器なので、y の移動と体の向きが打点ごとに入る。うつむいて棒を見ている姿勢はペルソナの構えが持っていて、ここは打点の前後だけを担当する。\n\nンゴニ・コラも同じ音階を鳴らすが、あちらは弾く楽器で体が動かない。「大きく横に渡りながら上から落とす」のはこれだけ。\n\n[clip fit] scaled down to stay inside the envelope at 96, 120, 126 BPM: head x0.400. Timing and the shape of the path are unchanged.",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.2
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.08,
+        "pose": {
+          "y": -1.6003,
+          "z": 1.0002,
+          "pitch": -1.2002
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "pose": {
+          "y": 1.6003,
+          "z": -1.4003,
+          "pitch": 1.6003
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.28,
+        "pose": {
+          "y": 2.2004,
+          "z": -1.6803,
+          "pitch": 1.9204
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.62,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.08,
+        "value": -0.8802,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "value": 0.8802,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.62,
+        "value": 0.0,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "value": [
+          -22.0,
+          22.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.62,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

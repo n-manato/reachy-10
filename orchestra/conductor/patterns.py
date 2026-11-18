@@ -77,13 +77,18 @@ class ConductorStyle:
     # ictus exists to communicate -- so sizing it to the hardware makes it
     # crisper, not weaker. Check with `orchestra song build --report` after
     # changing any of them.
-    z_amp_m: float = 0.006
-    """Vertical travel of the ictus. The primary beat signal."""
+    z_amp_m: float = 0.0045
+    """Vertical travel of the ictus. The primary beat signal.
 
-    y_amp_m: float = 0.0065
-    """Lateral travel, for the beat-pattern figure."""
+    2026-08-28: 0.006 -> 0.0053。参考元は 112 BPM・24秒の曲で決めた値だが、
+    Lamban は 120 BPM まで上がり 150秒続く。指揮者は**全拍を振り続ける**ので
+    負荷は本当に持続的で、10秒窓の実効値が上限の 93% まで来ていた。
+    目標は 85% 以下。"""
 
-    body_yaw_amp_rad: float = float(np.radians(12.0))
+    y_amp_m: float = 0.0049
+    """Lateral travel, for the beat-pattern figure。上の z と同じ理由で縮めた。"""
+
+    body_yaw_amp_rad: float = float(np.radians(10.0))
     """Body yaw follows the lateral gesture, which makes it legible at distance.
 
     7° 相当だった。上限 150° に対して実測ピーク 6.8° しか使っておらず、

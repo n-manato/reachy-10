@@ -75,6 +75,36 @@ def provision(ctx: Context, robot: RobotConfig) -> DeployResult:
             return res
         res.note("dependencies ok")
 
+        # ---- Wi-Fi のパワーセーブを切る ------------------------------------
+        # ★これを入れないと、ショーの途中で台が落ちる★
+        #
+        # 実測（2026-08-28、9台へ 5Hz で3分間 ping、ロボットは待機中）:
+        #
+        #   power save 有効:  損失 0.45-2.57%  RTT 最小 3ms / 平均 100-118ms / 最大 610-690ms
+        #   power save 無効:  損失 0.00-0.67%             / 平均  68-73ms
+        #
+        # 平均が最小の 30 倍あるのは、子機が寝ているあいだ AP がパケットを溜め、
+        # DTIM ビーコンでまとめて渡すため。ショー中に流れるのは 1Hz の
+        # ハートビートだけなので、ここで数百 ms が積もると 5 秒のデッドマンに
+        # 届いてしまう。実際この日、r04 / r08 / r09 が**別々の時刻に**
+        # 「no PC contact for 5.0-6.0s」で自動退避した（設計どおりの縮退だが、
+        # 公演としては1台欠ける）。
+        #
+        # NetworkManager の接続設定に書くので再起動後も効く。`iw` のほうは
+        # 今このセッションに即時反映させるため。パスワード無しの sudo が
+        # 要るので、無い環境では警告に留めて provision 自体は成功させる。
+        ps = ssh.run(
+            "conn=$(nmcli -t -f DEVICE,CONNECTION device 2>/dev/null "
+            "| awk -F: '$1==\"wlan0\"{print $2}'); "
+            "[ -n \"$conn\" ] && sudo -n nmcli connection modify \"$conn\" "
+            "wifi.powersave 2 2>/dev/null "
+            "&& sudo -n iw dev wlan0 set power_save off 2>/dev/null && echo psoff")
+        if "psoff" in ps.stdout:
+            res.note("wifi power save off (persistent, via NetworkManager)")
+        else:
+            res.note("wifi power save: NOT disabled -- needs passwordless sudo. "
+                     "Expect multi-hundred-ms latency spikes and mid-show drops.")
+
         res.ok = True
         return res
     except Exception as e:

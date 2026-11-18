@@ -1,0 +1,101 @@
+{
+  "name": "djembe_hit",
+  "version": 1,
+  "instrument": "djembe",
+  "description": "ジェンベを素手で打つ（エアー）。\n\n見分けの要点: **上下の振幅が最大**。バチではなく掌と指で打つ楽器なので、打点が最も深く落ち、跳ね返りも大きい。速度 = 振幅 ÷ 時間 なので、「一番深く落ちる」個性を残すために打点を後ろへ置いて時間を稼いでいる。\n\ndunun 2台もバチで打つが、あちらは遅く重い弧を描く。こちらは速く落ちて速く戻る。\n\n[clip fit] scaled down to stay inside the envelope at 96, 120, 126 BPM: head x0.280. Timing and the shape of the path are unchanged.",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.25
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.1,
+        "pose": {
+          "z": 1.1201,
+          "pitch": -1.1201
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "pose": {
+          "z": -1.4002,
+          "pitch": 1.4002
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.35,
+        "pose": {
+          "z": -1.6802,
+          "pitch": 1.6242
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.8,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.1,
+        "value": -0.7001,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "value": 0.7001,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.8,
+        "value": 0.0,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "value": [
+          -23.0,
+          23.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.8,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

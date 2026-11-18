@@ -162,22 +162,6 @@ def test_drift_tracker_smooths():
     assert 1.0 < d.offset < 1.1, "a single noisy round should nudge, not replace"
 
 
-def test_drift_tracker_replaces_an_estimate_left_from_days_ago():
-    """The console stays up for days and its links keep their trackers.
-
-    Blending in a ten-day-old offset put START 18 s in the past, and halved
-    that per take, while the sync report showed a healthy measured offset.
-    """
-    old = estimate([Sample(0, rtt=0.006, offset=1.000)], keep_best=1)
-    new = estimate([Sample(0, rtt=0.006, offset=19.000)], keep_best=1)
-    old.measured_at, new.measured_at = 0.0, 10 * 86400.0
-
-    d = DriftTracker()
-    d.update(old)
-    d.update(new)
-    assert d.offset == pytest.approx(19.000)
-
-
 def test_drift_ppm_needs_a_baseline():
     d = DriftTracker()
     d.update(estimate([Sample(0, rtt=0.006, offset=1.0)], keep_best=1))

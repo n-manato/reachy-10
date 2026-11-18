@@ -34,10 +34,9 @@ KIND_MIDI = "midi"
 KIND_PATTERN = "pattern"
 KIND_CONDUCTOR = "conductor"
 KIND_IDLE = "idle"
-KIND_VOICE = "voice"
 """歌のパート。音源の取り方は midi と同じだが、`transpose` で主旋律から
 ハモリを機械的に作れる。物理楽器が無く歌がメロディを担う構成のために追加した。"""
-KINDS = (KIND_MIDI, KIND_PATTERN, KIND_CONDUCTOR, KIND_IDLE, KIND_VOICE)
+KINDS = (KIND_MIDI, KIND_PATTERN, KIND_CONDUCTOR, KIND_IDLE)
 
 
 class ScoreError(ValueError):
@@ -81,6 +80,14 @@ class Part:
     # pattern source
     pattern: str = ""
     step_beats: float = 0.25
+    zone_cycle: list[int] = field(default_factory=list)
+    """ループ型クリップのアンカーに、この順でゾーン（＝ノート番号）を割り当てる。
+
+    カリニャンのように**往と復で音が違う**楽器のためにある。クリップの
+    `anchors` は鳴る時刻しか持たず、既定では全部が同じ音になってしまうので、
+    `[60, 61]` と書けば往・復・往・復…と交互に鳴る。
+    `kind: pattern` かつ `pattern` 文字列を持たないパートにだけ効く。
+    """
     repeat: bool = True
     start_bar: int = 0
     end_bar: float | None = None
@@ -195,7 +202,7 @@ class Score:
             raise ScoreError("score has no timeline")
         tl = self.timeline
 
-        if part.kind in (KIND_MIDI, KIND_VOICE):
+        if part.kind == KIND_MIDI:
             pitches = set(part.pitches) if part.pitches else None
             evs = tl.events_for(
                 track=part.track or None, channel=part.channel, pitches=pitches
@@ -423,6 +430,7 @@ def load_score(path: str | Path) -> Score:
             transpose=int(praw.get("transpose", 0)),
             pattern=str(praw.get("pattern", "")),
             step_beats=float(praw.get("step", praw.get("step_beats", 0.25))),
+            zone_cycle=[int(v) for v in (praw.get("zone_cycle") or [])],
             repeat=bool(praw.get("repeat", True)),
             start_bar=int(praw.get("start_bar", 0)),
             end_bar=(None if praw.get("end_bar") is None

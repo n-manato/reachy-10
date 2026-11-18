@@ -868,6 +868,44 @@ def cmd_show_deploy(args) -> int:
         if pn in score.parts and score.parts[pn].audio
     }
     robots = _robots(ctx, args)
+
+    # ★配る前に、ビルド済みプログラムが今の cast と合っているか確かめる★
+    #
+    # `song build` は検証に落ちたビルドを書かない（正しい）。だが `build/` には
+    # **前回成功したビルドが残る**。cast を書き換えてビルドが落ちた直後に
+    # deploy すると、**古い担当のモーションと新しい担当の音声**が同じ機体へ
+    # 配られる ―― 指揮のプログラムでバラフォンの音を鳴らす、という状態になる。
+    # エラーは出ないので、実機で見るまで気付かない。実際 2026-08-28 にやった。
+    #
+    # 音とモーションの対応は `anchors` で構造的に保証されている、というのが
+    # この設計の柱なので、その前提が崩れる配布は止める。
+    stale = []
+    for r in robots:
+        part = score.part_for_robot(r.id)
+        prog = build_dir / f"{r.id}.program.json.gz"
+        if part is None or not prog.exists():
+            continue
+        try:
+            import gzip as _gzip
+            import json as _json
+            built = _json.loads(_gzip.open(prog, "rt", encoding="utf-8").read()).get("part", "")
+        except Exception:
+            continue
+        # 指揮者のプログラムだけは `part` に "conductor" が入る
+        # （`conductor.patterns.build_conductor_program` が手続き生成するため、
+        #  song.yaml 上の名前 ―― この曲では "lead" ―― を持っていない）。
+        # ここを素朴に名前比較すると、正しいビルドを止めてしまう。実際やった。
+        from .music.score import KIND_CONDUCTOR
+        expected = "conductor" if part.kind == KIND_CONDUCTOR else part.name
+        if built and built != expected:
+            stale.append(f"{r.id}: built for {built!r} but the cast now says "
+                         f"{part.name!r} ({expected!r})")
+    if stale:
+        die("the build in {} does not match the current cast:\n  {}\n"
+            "Run `orchestra song build {}` first -- and read its output: if the "
+            "build FAILED validation, nothing was rewritten and what is on disk "
+            "is the previous cast.".format(build_dir, "\n  ".join(stale), args.song))
+
     print(f"deploying {score.name} to {len(robots)} robot(s) ...")
     results = deploy_show(
         ctx, robots, build_dir,
@@ -994,7 +1032,12 @@ def cmd_show_play(args) -> int:
     return 1 if report.get("errors") else 0
 
 
-from .show.run import LOOP_GAP_S  # noqa: E402  (ループ再生の間。`show.run` 側に定義)
+LOOP_GAP_S = 5.0
+"""ループ再生で1回と次の回のあいだに置く間。
+
+就寝姿勢から次の回の開始姿勢へ戻る `goto`（arm 内、2秒）が入るので、ここを 0 に
+すると礼の直後に頭が持ち上がって不自然に見える。観客が「終わった」と分かる間を
+取るための値で、安全上の意味は無い。"""
 
 
 ARROWS = ("up", "down", "left", "right")
@@ -1263,21 +1306,38 @@ VOLUME_STEP = {"up": 3, "down": -3, "right": 1, "left": -1}
 
 
 def _volume_seed(ctx, robots) -> tuple[int, str]:
-    """開始音量を決める。中身は `show.volume` 側。
+    """開始音量を決める。config が最優先、無ければ実機から読む。
 
-    `orchestra web` も同じ値から始めないと、同じ部屋が起動方法によって違う
-    音量になる。だから判断そのものは共有の場所に置いてある。
+    実機から読むのは `GET /api/volume/current` で、**これは音を鳴らさない。**
+    鳴るのは POST /set のほうだけ。
     """
-    from .show.volume import seed_volume
+    from .show.volume import median, read_current
 
-    return seed_volume(ctx, robots)
+    saved = [c.volume for c in (Calibration.load(r.id, ctx.root / "config"
+                                                 / "calibration")
+                                for r in robots) if c.volume is not None]
+    if saved:
+        return int(median(saved)), "config"
+    live = read_current(ctx, robots)
+    if live:
+        # 9台が食い違っていても、ここでは揃えにいかない。最初のキー操作で
+        # 揃う ―― 起動時に黙って変えるより、押した瞬間に変わるほうが分かる。
+        return int(median(live.values())), "robots"
+    return 50, "default"
 
 
 def _volume_save(ctx, robots, value: int) -> None:
-    from .show.volume import save_volume
+    """音量を各機の校正ファイルへ書き戻す。
 
-    n = save_volume(ctx, robots, value)
-    ok(f"volume {value} saved to {n} calibration file(s)")
+    `load` してから `save` するので `audio_lead_ms` などは保たれる。
+    実際に変えたときしか呼ばない ―― 触っていない設定を書き換えない。
+    """
+    root = ctx.root / "config" / "calibration"
+    for r in robots:
+        cal = Calibration.load(r.id, root)
+        cal.volume = int(value)
+        cal.save(root)
+    ok(f"volume {value} saved to {len(robots)} calibration file(s)")
 
 
 def cmd_show_run(args) -> int:
@@ -1419,28 +1479,41 @@ def cmd_show_run(args) -> int:
                 f"\n  [{ch}] got it -- stopping at the end of this take\n",
                 flush=True)
 
-            vol = None
+            # ★音量の適用はキー入力の有無と無関係★
+            #
+            # ここは長らく `if keys.arrows:` の中にあった。矢印キーを出す端末で
+            # しか音量を送らないという意味になっていて、非対話シェル・ssh -T・
+            # CI から走らせると **音量が一度も送られない**。ロボットは直前に
+            # 誰かが置いていった音量のまま鳴る。
+            #
+            # 2026-08-28、それで実際に「9台が完璧に同期して動いているのに音が
+            # 一切出ない」公演が起きた。ログは 3268855 フレーム全部を push して
+            # err 0 と報告し、WAV も ALSA ミキサーも正常で、原因の切り分けに
+            # 分光解析まで要った。**保存した音量を適用しないなら、保存する
+            # 意味が無い。** ライブで上下できるかどうかは別の話。
+            seed, src = _volume_seed(ctx, here)
+
+            def _draw(v: int) -> None:
+                print(f"\r  volume {v:3d}  [{bar(v)}]      ",
+                      end="", flush=True)
+
+            # config から来た値は復元する（保存した理由がそれ）。実機から
+            # 読んだ値は既にその状態なので送り返さない。
+            vol = stack.enter_context(VolumeController(
+                lambda: show.fleet, seed,
+                apply_initial=(src == "config"),
+                on_change=_draw if keys.arrows else None))
             if keys.arrows:
-                seed, src = _volume_seed(ctx, here)
-
-                def _draw(v: int) -> None:
-                    print(f"\r  volume {v:3d}  [{bar(v)}]      ",
-                          end="", flush=True)
-
-                # config から来た値は復元する（保存した理由がそれ）。実機から
-                # 読んだ値は既にその状態なので送り返さない。
-                vol = stack.enter_context(VolumeController(
-                    lambda: show.fleet, seed,
-                    apply_initial=(src == "config"), on_change=_draw))
                 keys.on_arrow = lambda a: vol.nudge(VOLUME_STEP.get(a, 0))
                 tail = ("" if src == "config"
                         else "   -- the first press aligns all of them")
                 print(f"\nvolume {seed} (from {src})   "
                       f"up/down +-{VOLUME_STEP['up']}   "
                       f"left/right +-{VOLUME_STEP['right']}{tail}")
-            elif keys.available:
-                print("\nthis terminal delivers text but not arrow keys, "
-                      "so live volume is off")
+            else:
+                applied = "applied" if src == "config" else "already set on the robots"
+                print(f"\nvolume {seed} (from {src}) -- {applied}. "
+                      "this terminal has no arrow keys, so it cannot be nudged live")
 
             if keys.available and keys.needs_enter:
                 print("press **s then Enter** to stop after the current take "
@@ -1597,79 +1670,6 @@ def cmd_show_park(args) -> int:
 
     for r, res, err in parallel(robots, park):
         (bad if err else ok)(f"{r.id}: {err or res}")
-    return 0
-
-
-# ---------------------------------------------------------------------------
-# web
-# ---------------------------------------------------------------------------
-
-
-def cmd_web(args) -> int:
-    """Serve the console: play / stop / loop / volume, and the show on screen.
-
-    The same lifecycle as `show run`, reachable from a browser instead of a
-    terminal, plus a digital twin of the nine robots driven by the very frames
-    they are playing.
-
-    Binds to loopback. Anything that can reach this port can start nine robots
-    moving, and there is no authentication here; `--host` opts out of that and
-    says so.
-    """
-    import webbrowser
-
-    from .music.score import load_score
-    from .web.export import STAGE_FPS, ExportError, stage_data
-    from .web.runner import FleetBackend, RehearsalBackend, ShowRunner
-    from .web.server import build_app, is_loopback, serve
-
-    ctx = _ctx(args)
-    score = load_score(_song_path(ctx, args.song))
-    robots = _robots(ctx, args)
-
-    print(f"reading {score.name} from {ctx.build_dir / score.name} ...")
-    try:
-        stage = stage_data(ctx, score, robots, fps=args.stage_fps)
-    except ExportError as e:
-        die(str(e))
-
-    on_stage = [e["id"] for e in stage["robots"]]
-    missing = [r.id for r in robots if r.id not in on_stage]
-    ok(f"{len(on_stage)} robot(s) on screen, {stage['duration']:.2f}s "
-       f"at {stage['fps']:g} fps")
-    if missing:
-        print(f"  no compiled program for {', '.join(missing)} "
-              f"-- they get no seat. Rebuild with `orchestra song build "
-              f"--song {score.name}`")
-
-    cast = [r for r in robots if r.id in on_stage]
-    if args.rehearse:
-        backend = RehearsalBackend(stage["duration"], robots=cast)
-        print("\nrehearsal mode: no robot is touched. The screen runs on its "
-              "own clock\n  and the volume slider only moves the browser's "
-              "preview audio.")
-    else:
-        backend = FleetBackend(ctx, cast)
-
-    runner = ShowRunner(
-        backend,
-        stage["duration"],
-        lead_s=float(ctx.fleet.show.get("start_lead_s", 3.0)),
-    )
-    runner.start()
-
-    preview = Path(score.source_dir or "") / "preview.wav"
-    app = build_app(runner, stage, preview if preview.exists() else None)
-
-    url = f"http://{'localhost' if is_loopback(args.host) else args.host}:{args.port}/"
-    print(f"\nconsole on {url}")
-    if not is_loopback(args.host):
-        print("  ** this is not loopback. There is no authentication here, so "
-              "anything\n     that can reach this port can start the robots. **")
-    print("  ctrl-C to stop serving (the robots are parked on the way out)")
-    if args.open:
-        webbrowser.open(url)
-    serve(app, host=args.host, port=args.port)
     return 0
 
 
@@ -1990,22 +1990,6 @@ def build_parser() -> argparse.ArgumentParser:
     robot_arg(sp)
     sp.add_argument("--sleep", action="store_true")
     sp.set_defaults(func=cmd_show_park)
-
-    # -- web -----------------------------------------------------------
-    sp = sub.add_parser(
-        "web", help="serve the browser console (play/stop/loop/volume + the show on screen)")
-    sp.add_argument("song")
-    robot_arg(sp)
-    sp.add_argument("--port", type=int, default=8080)
-    sp.add_argument("--host", default="127.0.0.1",
-                    help="loopback by default: this port can start the robots "
-                         "and has no authentication")
-    sp.add_argument("--rehearse", action="store_true",
-                    help="drive the screen with no robots at all")
-    sp.add_argument("--stage-fps", type=float, default=50.0,
-                    help="frame rate sent to the browser (source is 100)")
-    sp.add_argument("--open", action="store_true", help="open a browser")
-    sp.set_defaults(func=cmd_web)
 
     # -- calibrate -----------------------------------------------------
     cal = sub.add_parser("calibrate", help="measure per-robot values")

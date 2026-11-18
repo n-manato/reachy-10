@@ -40,7 +40,11 @@ def main() -> int:
     ap.add_argument("--base-port", type=int, default=8900)
     ap.add_argument("--bpm", type=float, default=112.0)
     ap.add_argument("--loops", type=int, default=6)
-    ap.add_argument("--clip", default="shaker/groove")
+    # `shaker/groove` until the 2026-08-28 Mande re-cast retired it. The clip
+    # only has to exist and be safe at the test tempo -- nothing here is
+    # musical -- but a default naming a clip the library no longer has makes
+    # the self-test fail as if the protocol were broken.
+    ap.add_argument("--clip", default="djembe/hit")
     ap.add_argument("--lead", type=float, default=3.0)
     args = ap.parse_args()
 

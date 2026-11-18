@@ -1,9 +1,24 @@
-# Reachy Mini Orchestra
+# Reachy Mini Orchestra — Mande ensemble
 
-A synchronized robot orchestra: **1 conductor + 8 instrumentalists**, driven from
-one Windows PC over an isolated Wi-Fi network, on a shared musical timeline. The
-show runs 144 seconds: the conductor introduces each player, the ensemble plays
-*It's a Small World*, and all nine bow and put their faces away.
+A synchronized robot orchestra: **1 lead + 8 instrumentalists**, driven from one
+PC over an isolated Wi-Fi network, on a shared musical timeline. The show runs
+about 200 seconds: the lead introduces each player, the ensemble plays
+**Lamban**, and all nine bow and put their faces away.
+
+**Lamban** (also *Djelidon*, *Djelifoli*, *Lamba*) is the Maninka/Malinké piece
+danced for the **jeli** — the griot. It was born on the balafon, in the Kouyaté
+lineage, and its traditional instrumentation is balafon, *djeli dundun* and
+*tama*, with kora alongside; in Guinea and Senegal a djembe-and-dunun battery
+joins in. That matters here: this is one of the few pieces where **melodic and
+percussion instruments together are the tradition itself**, not a modern
+arrangement — so a mixed eight-piece robot ensemble is a faithful reading rather
+than a compromise. There is no singing.
+
+The eight parts, one per robot: **balafon · kora · ngoni · tama · djembe ·
+dundunba · sangban · karignan**. Every rhythm and figure in the score is marked
+`[DOC]` (a transcription with a citation) or `[RECON]` (my reconstruction from
+sourced constraints) in `tools/make_lamban.py`. See *Note on the music* at the
+end.
 
 **No physical instruments.** Every sound comes out of the robots' own speakers;
 the motion is air-instrument acting. That inversion matters more than it sounds:
@@ -107,45 +122,39 @@ motion rather than failing.
 ## Quick start
 
 ```bash
-# Windows
-python -m venv .venv && .venv\Scripts\activate
-
-# Linux (the RTX3090 box). 3.11 explicitly -- the system `python3` is 3.8.
-# `reachy-mini` pulls in PyGObject on Linux (it takes gstreamer-bundle on
-# Windows instead), and PyGObject has no wheel: without these headers the
-# install dies building pycairo.
+# Linux。3.11 を明示する（システムの python3 は 3.8）。
+# `reachy-mini` は Linux で PyGObject を引き、PyGObject には wheel が無い。
+# 下のヘッダが無いと pycairo のビルドで死ぬ。
 sudo apt-get install -y libcairo2-dev libgirepository1.0-dev libglib2.0-dev
 python3.11 -m venv .venv && source .venv/bin/activate
+pip install -e ".[plot,dev]"
 
-pip install -e ".[plot,dev,voice]"
+python tools/make_mande_samples.py     # 8楽器を数値合成 -> samples/mande/
+python tools/audition_samples.py       # 合成音を1本にまとめて聴く（最重要）
+python tools/make_lamban.py            # 採譜 -> songs/lamban/lamban.mid
+python tools/make_stems.py songs/lamban   # ロボット1台ごとの音声ステム
+python tools/preview_song.py songs/lamban # 全部を足して試聴
 
-orchestra fleet status                 # is everyone alive?
-orchestra fleet discover --write       # reconcile IPs by hardware_id
-orchestra clip list                    # what motions exist
-orchestra clip check --bpm 112         # run the safety gate on the library
+orchestra clip list                    # どんな動きがあるか
+orchestra clip check --bpm 96 --bpm 120   # クリップ単体の安全ゲート
+orchestra song build lamban --report   # 9台ぶんコンパイル + 検証
 
-python tools/extract_samples.py        # pull instrument samples out of gm.dls
-python tools/make_stems.py             # render per-robot audio
-python tools/preview_song.py           # mix it down and listen before deploying
-orchestra song build small_world       # compile + validate 9 programs
-
-orchestra fleet provision              # install the agent on every robot
+orchestra fleet status                 # 全機生きているか
+orchestra fleet discover --write       # hardware_id で IP を突き合わせる
+orchestra fleet provision              # 各ロボットにエージェントを入れる
 orchestra fleet agent start
-orchestra show deploy small_world
-orchestra show run small_world         # arm, sync, start, monitor, park
-orchestra web small_world              # ...or drive it from a browser
+orchestra show deploy lamban
+orchestra show run lamban              # arm, sync, start, monitor, park
 ```
 
-Two commands worth remembering under pressure:
+追い込まれたときに思い出す2つ:
 
 ```bash
-orchestra show stop      # graceful: agents ramp to neutral, then cut torque
-orchestra show estop     # HARD: disable motors over HTTP, bypassing the agents
-```
-
+orchestra show stop      # 穏当: エージェントが中立へ寄せてからトルクを切る
+orchestra show estop     # 強制: HTTP で直接モーターを落とす（エージェントを迂回）
 ## While it is playing
 
-A run is 148 seconds during which nothing else can be typed, so the useful
+A run is 204 seconds during which nothing else can be typed, so the useful
 controls are keys:
 
 | key | |
@@ -182,423 +191,58 @@ is hung.
 
 ---
 
-## The browser console
-
-`orchestra show run` needs someone at a terminal for 148 seconds. An exhibition
-needs a button anyone can press. Same lifecycle, different front end:
-
-```bash
-orchestra web small_world              # http://localhost:8080
-orchestra web small_world --rehearse   # the screen, with no robots at all
-```
-
-| control | what it does |
-|---|---|
-| ▶ / ■ | one take: arm → sync → START → monitor. Stop fades the music and lowers the head over `agent.fade_out_s`, through the agents |
-| ⟳ | repeat, with the same 5 s gap `show run --loop` uses |
-| slider | **the robots' volume**, through the same `VolumeController` |
-| E-STOP | `hard_stop()` — motors off over HTTP, agents bypassed |
-
-Space, `L`, `T` (instruments / robot twin), arrow keys (±3 and ±1, matching
-the terminal) and `F` all work. **The camera is fixed** — no drift, no push-in
-on the choruses: a screen standing beside nine robots is a window onto them,
-and a window does not move. **The page is in English**: the robot ids and
-instrument names on it are the config's own strings, and a test keeps any
-other language out of the three static files.
-
-**The sound is the robots' own speakers, and the browser is not in the audio
-path.** Nine stems, each played by the robot playing that part, on that robot's
-own clock — the same arrangement [the rest of the system](#how-the-sound-works)
-is built on. So the slider says `9 ROBOTS` on it, and moves those nine
-mixers through the agent rather than the daemon's `/api/volume/set`. The page
-itself is silent: the only `<audio>` element on it has no `src` until rehearsal
-mode attaches one, and `/api/audio/preview.wav` returns **403 outside
-`--rehearse`**. Putting the PC mix in the room during a performance would add a
-tenth voice a sound card's latency away from nine that are aligned to 0.999 ms.
-The console can therefore run on a muted machine, or a machine with no sound
-card, and nothing about the show changes.
-
-**There is no pause, and that is the hardware's shape rather than a
-simplification of it.** The agent plays its program against its own monotonic
-clock and the only ways out of that loop are *finish* and *abort to neutral*;
-there is no suspend. A pause button would have to be a freeze at the last
-target — the exact condition that stalls a servo against its own travel — or a
-silent restart. So **stop returns to neutral and play always starts from the
-top.**
-
-Stop answers in under 50 ms. `show run` asks for a stop at the end of the
-current take, which is right for a performance someone chose to run and wrong
-for a button on a wall, so `Show.monitor` takes a `should_stop` callback and
-slices its waits finely while still polling the robots at the measured-safe
-2 Hz.
-
-### What is on the screen
-
-**The instruments.** The robots have none — the sound is nine speakers and
-the motion is acting — so the one thing an audience cannot see is which seat
-is the marimba, and the real robots are standing next to the screen already.
-The screen shows nine instruments in the robots' seating, each with a placard
-(`MARIMBA` over `R05`, both straight from `robots.yaml` so the screen cannot
-drift from the config), and plays them from the same data the robots play:
-
-| | from | shows |
-|---|---|---|
-| strikes | the build's `anchors`, plus onsets recovered from the stem for the introduction, which the anchors do not cover at all | the mallet rising a quarter second early and landing on the instant |
-| pitch | the score's note events, which agree with the anchors to 0.0 ms | *which bar* the mallet lands on, which key sinks |
-| level | that robot's **own stem**, RMS at 50 Hz | the vibraphone ringing after the mallet has gone, the shaker's roll, the glow under each placard |
-
-**At their real size.** A five-octave marimba is 2.6 m long with resonators
-that nearly reach the floor; a glockenspiel is a 70 cm case on a stand; a
-shaker is something you hold. The pitched instruments are built across their
-full standard range (the marimba C2–C7, 61 bars) and the played bars light
-within it, because a marimba with twenty bars is a toy. Bars are laid out like
-a keyboard (naturals in front, accidentals raised and set back) so a scale runs
-left to right; the rest get the thing itself — a block and a stick on a chrome
-tripod, a hoop with sixteen pairs of jingles, a tube shaker in a cradle, four
-handbells turned from a bell's profile, a podium with a lit edge, a stand with
-a tablet score and a baton that leaves a trail of light. Bevelled geometry,
-wood grain, clearcoat lacquer, brushed aluminium. `instruments.js` has one
-`build()` entry point per kind, so any of them can be swapped for a modelled
-mesh.
-
-**The look** is the three things a model needs that a toy does not: an
-environment for the metal to reflect (a generated studio, via PMREM), a floor
-that reflects the instruments (a `Reflector` under a dark glaze and a shadow
-catcher), and a bloom pass so that what glows, glows (`UnrealBloomPass`). Over
-each seat, a cone of light that brightens with that robot's own stem. The
-three.js addons for all of this are vendored under `static/vendor/addons/` and
-resolved by an import map, so the page still needs no network.
-`?quality=low` turns the reflector, shadows and bloom off for a weak GPU.
-Everything under `/static/` is served `Cache-Control: no-cache`: aiohttp's
-static handler sends only `Last-Modified`, and a browser given only that
-guesses a freshness of a tenth of the file's age — so an edited scene file can
-go on being served from cache for minutes, with nothing anywhere to say why
-the screen stopped reacting.
-
-**The robot twin** (`T` toggles it) is the second view: nine Reachy Minis
-playing **the frames the nine robots are playing** —
-`build/<song>/<id>.program.json.gz` resampled to 50 Hz and nothing else. No
-easing, no beat detection, no second choreography engine that could drift from
-the first. It is for rehearsing a build without robots and for checking motion
-— the one placement in it that is not a guess is the conductor's: `song.yaml`
-requires it installed rotated 90°, so it plays at body yaw −90° facing the
-ensemble and turns 180° to +90° to bow at the audience. Get that wrong and the
-screen shows it bowing to the back wall.
-
-**The introduction had nothing to show.** Not one anchor falls inside the
-33-second naming sequence — `song build` writes them for the music only — so
-the one stretch whose whole job is to say which robot plays what was silent on
-screen. `export.py` now recovers its strikes from each stem's own level
-(`onsets`), stopping short of the first anchor so the first note is not struck
-twice; 28 of them fire during the introduction, in the build's own naming
-order. During the music the anchors are still the only source, because a
-vibraphone still ringing would produce onsets the robot is not playing.
-
-Those onsets go into **the instruments too**, not just the halos — merged into
-each instrument's own strike list at construction, with a null pitch padded in
-to keep the list index-aligned with the note list. Without that the mallets,
-keys and sticks stood still through the entire naming sequence while the
-lights around them moved: the screen said a robot was playing and showed it
-not playing.
-
-**The strike halo had to change shape for this camera.** It began as a thin
-ring of flat geometry on the floor, and it fired correctly — measured peak
-opacity 0.75–0.80 on every robot through the introduction — but two metres up
-and seventeen back is a six-degree view of the floor, at which a 20 cm band
-projects to a hairline, and the instrument's own frame covers what is left of
-it. It is a broad soft halo on a textured quad now, starting about as wide as
-the instrument and growing half again over 0.6 s: the same read as the pools
-of light already on the floor, which are visible at that angle precisely
-because they are broad.
-
-**And then it still did not appear, for two reasons that only bite when
-frames are slow.** Measuring the live frame loop rather than a synthetic one
-showed `update()` running about 1.2 times a second under software rendering,
-with every halo painting 0.000:
-
-* The halo was aged in *program* time from its anchor, and drawn *after* the
-  strike was consumed. At 60 fps that is a 16 ms delay; at 1 fps the hit is
-  registered at the end of one frame and the next frame is already past the
-  0.6 s window, so the halo is computed, found expired, and never drawn once.
-  It is aged in **real** seconds from the firing instant now, and strikes are
-  consumed *before* the frame that draws them.
-* `syncClock` hard-reset the page clock whenever the derived T0 moved by more
-  than half a second — which sounds like a clock jump and is not. A snapshot
-  is handled on the main thread, so a frame that takes most of a second makes
-  every message that late, and the lateness lands in the estimate as a leap.
-  Six spurious resets in one take, each rewinding the strike pointers and
-  re-firing every halo at once. Lateness only ever makes the estimate later
-  and easing averages it out, so the reset now fires only on real
-  discontinuities: the first snapshot, a new take, or the clock running
-  backwards. Measured after: **1 rewind, 28 intro strikes, 0 duplicates, every
-  ring reaching 0.900.**
-
-A burst of anchors due in a single frame is still treated as a seek rather
-than a performance — keyed on the size of the burst, not on how old the
-anchors are, because at a few frames a second an honest strike is already
-old.
-
-Behind either view, **one Heisei head-unit display, scaled up.** Drawn from a
-photograph of a Kenwood DPX-660MD, and measured off it rather than guessed:
-the columns radiate from a point below the stage — upright in the middle,
-leaning further out toward the edges, their bases on an arc — so it reads as a
-stadium bowl seen from the rim, and the gradient runs *along* each column,
-green at the base through white-cyan to blue and violet at the tips (sampled
-hues 150 → 184 → 208 → 280, the lit cores blown out white).
-
-**One field, one waveform.** The whole background is a single display driven by
-a single sound — `preview.wav`, the mix of all nine stems (`export.py`,
-`mix_bands`: 20 log-spaced bands, 80 Hz–7.8 kHz, 2048-sample Hann window) —
-so it rises and falls as one body. Peak-hold caps sit above each column,
-hanging half a second before they fall: that is the thing that makes a
-segmented analyser read as an analyser rather than as a bar chart — the bars
-jump and drop, the caps linger and trace the shape of what just happened.
-
-**It is calibrated per band, and that is what makes it move.** Measured, the
-first version did not: bands 0–1 (40–68 Hz) had a mean level of 0.2 and 0.1 of
-100 because the piece's lowest note is F2 at 87 Hz, and the mapping put those
-two dead bands on the longest, outermost columns — the four most prominent
-columns on screen never lit. Worse, normalising every band against one global
-peak left bands 4–6 sitting at a near-constant 57–64 (std 8–15): the loudest
-part of the display was the most static part of it, which is the opposite of
-what a spectrum analyser is for. Each band is now scaled between two
-percentiles of its own level (15th and 98th, chosen by sweeping them), so
-every column uses its whole travel. Measured after: no band with a standard
-deviation under 10, the music resting near half scale with room to peak, and
-**2.5× the frame-to-frame movement** — 18.2 of 100 per band per 200 ms,
-sampled off the live page. Silence is still silence; it sits far below any
-band's quiet percentile. The per-stem spectra still drive the
-instruments; nothing behind them is per-instrument any more. The bands are
-mirrored out from the centre, and **the bass is at the edges**: the long outer
-columns are the ones with room to show it, and the photograph's silhouette is
-tall at the sides.
-
-**The bowl is geometry, not data.** In the photograph the middle columns are
-short and the outer ones reach the top. That is perspective — the far side of
-a bowl is small — so each column's full length and cell size grow with its
-angle, and the music modulates how much of that length is lit. Reading the
-silhouette as data would have put the bass in the wrong place. The rim arc
-dips by cos(θ), so it is placed to clear the tallest instrument at *every*
-angle, not just in the middle; otherwise the bright base of the field sits on
-the players.
-
-**Everything there is light.** There is no panel for the cells to sit in: a
-surface catches the stage lights, becomes a grey slab with a grid of dark
-windows on it, and the backdrop stops being illumination and starts being an
-office block at night. The cells are additively blended, so an unlit one
-contributes exactly nothing.
-
-`--rehearse` runs the whole console on a clock with no robots touched, which is
-how the screen gets built and demonstrated. There `PC preview` plays
-`preview.wav` through the browser so the screen can be checked against the mix,
-and the slider relabels itself from `9 ROBOTS` to `PC PREVIEW` to say that is
-what it is now moving.
-
-**The screen does not sleep while the page is open** — Screen Wake Lock,
-re-acquired on every `visibilitychange`, with a 685-byte looping video as the
-fallback where the API is missing.
-
-**It binds to loopback.** There is no authentication and no honest way to add
-one: anything that can reach this port can start nine robots moving. `--host`
-opts out and says so every time.
-
-### Running it resident
-
-An exhibition cannot depend on someone keeping a terminal open. The console
-installs as a systemd **user** service:
-
-```bash
-deploy/install_service.sh              # install, enable, start
-deploy/install_service.sh uninstall    # stop, disable, remove
-journalctl --user -u orchestra-web -f  # logs
-systemctl --user restart orchestra-web
-```
-
-`loginctl enable-linger` is what makes a *user* service come up at boot rather
-than at login; the installer does it, and says so if it could not.
-
-**Leaving it running does not arm anything.** The first thing that speaks to
-the nine agents is `FleetBackend.open()`, reached only from `ShowRunner._takes()`
-once the play event is set — so starting the service, restarting it and
-rebooting the machine all leave the fleet exactly as they found it. Checked
-after a boot: every robot `running`, `motors disabled`. The console sits in
-`offline`, which is the honest name for *nothing has tried yet*. Stopping does
-the opposite of arming: aiohttp's `run_app` handles SIGTERM and SIGINT alike
-and runs `on_cleanup` either way, which is `runner.close()` parking them.
-`TimeoutStopSec` is two minutes because a console that has opened the fleet
-releases the port at once but takes 30–60 s to finish tearing down nine links,
-and SIGKILL in the middle of that is the one way to leave a robot powered and
-holding a pose.
-
-**The resident service binds `0.0.0.0`, and that is a deliberate exception to
-the paragraph above.** The tunnel in front of it could not reach
-`127.0.0.1:8080` while the sibling exhibit on `0.0.0.0:8010` was reachable, so
-whatever fronts these ports does not share this machine's loopback. Every
-interface answers now, the docker bridge gateway included.
-
-Nothing in this repo makes that safe, because nothing in it can: there is no
-authentication on the port, so **anyone who can route to this host on 8080 can
-start nine robots moving.** The control has to come from outside the process —
-Cloudflare Access on the public URL, and a firewall rule if the LAN itself
-should not have it:
-
-```bash
-sudo ufw allow from <tunnel host>/32 to any port 8080 proto tcp
-sudo ufw deny 8080/tcp
-```
-
----
-
 ## How the sound works
 
-Every instrument you hear is a **real recording**, not synthesis. They come out of
-`C:\Windows\System32\drivers\gm.dls` — the Roland-authored General MIDI sample
-set Windows already ships. It is plain RIFF, so `tools/extract_samples.py` reads
-it with nothing but the standard library. No download, no new dependency, and the
-isolated network stays isolated.
+**すべて数値合成**。参考にした構成は Windows の `gm.dls`（Roland の GM 音源）から
+実録音を抜いていたが、GM には kora も ngoni も balafon も djembe も dunun も
+入っていない。コンガやハープで代用すると単に別の楽器に聞こえるうえ、この編成に
+要る2つのものが原理的に表現できない:
 
-The chain, PC-side and offline:
+1. **打法** — djembe の bass / tone / slap、dunun の開放 / ミュート / 鈴。
+   GM の打楽器は1楽器1波形なので打ち分けられない。
+2. **音律** — マンデのバラフォンはほぼ等間隔の七音音階（1ステップ約 **171 cent**
+   = 1200/7）で、12平均律の鍵盤では出せない音程が並ぶ。コラはさらに別で、
+   ここでは **Sauta** 調弦（F 185 G 220 A 200 B 95 C 185 D 220 E 95 f）を使う。
 
-```
-gm.dls  →  extract_samples.py  →  sampler (loop-aware, auto-tuned)
-        →  render.py (22050 Hz)  →  resample to 16000  →  ensemble balance
-        →  songs/small_world/audio/<part>.wav      one stem per robot
-```
+`orchestra/audio/mande.py` が全部を合成する:
 
-Two details that are easy to get wrong:
-
-- **One stem per robot, never a shared mix.** Nine robots playing the same audio
-  a few milliseconds apart comb-filters into something thin. Nine *different*
-  parts turn the residual skew into "nine players", and the sound then comes from
-  the same place as the motion.
-- **16 kHz stereo F32 is not a choice** — the robot's audio path is hard-coded to
-  it (`media/audio_base.py:59-60`). Audible bandwidth stops at 8 kHz, which
-  matters for percussion: the tambourine sample had 69% of its energy above
-  8 kHz. `sampler.suggest_pitch_shift` pulls those down into the band.
-
-On the robot, playback is **explicit-PTS PCM streaming**, not `play_sound()`.
-`play_sound` builds a fresh playbin and reopens the ALSA device on every call, so
-all of that variable cost lands on the critical path. Instead the pipeline starts
-once and stays up, and `push_audio_sample` timestamps **only the first buffer** —
-everything after it is placed by byte count (`media/audio_base.py:88-104`). Call
-jitter therefore only exists at the anchor; the rest of the piece is sample-exact.
-
-Measured, nine robots, `orchestra show run small_world`:
-
-| | |
+| 系統 | 方式 |
 |---|---|
-| completed | 9/9, zero dropped |
-| length | 104 s (32 bars at 80 BPM, plus lead-in and tail) |
-| motion start error | 0.365 – 1.002 ms |
-| frames | 10400/10401 on every robot, 0 late ticks |
-| clock-sync uncertainty | 1.95 ms worst case |
-| audio | 1041 chunks / 1,664,001 frames per robot, 0 push errors |
-| clock-ratio spread | 237 ppm → **0.64 ms** across the fleet at the anchor |
+| djembe / dunun / tama | 円形膜のモード（ベッセル零点比）を2極共振器のバンクにして、帯域を絞った打撃ノイズで励起。打法の差は**励起の帯域と長さ**で作る |
+| tama のベンド | 加算合成。共振器は係数固定でグライドが掛けられないので、あれだけ別方式 |
+| balafon | 自由端棒のモードをアンダーカットに倣って 1:3:6 へ寄せ、**瓢箪のビリつき**を包絡線で開くゲート付きノイズで足す。マリンバとの差はほぼここ |
+| kora / ngoni | 拡張 Karplus-Strong。分数遅延で音程の量子化誤差を消し、さらに**鳴らして測って合わせる**（実測誤差 0.5 cent 以内） |
+| karignan | 溝を弾く密なインパルス列を金属共鳴へ。往と復で密度を変える |
 
----
-
-## How the singing works — *retired, kept as a record*
-
-> **This is no longer used.** Three synthesis routes were built and all three
-> were rejected by ear: per-syllable SAPI + LPC, whole-line neural TTS + WORLD,
-> and DiffSinger. The piece is now nine instruments (see *The cast*), and the
-> voice modules under `orchestra/audio/` are unused by `songs/small_world`.
->
-> The section is kept because the measurements in it were expensive to get and
-> are still true — in particular that **every objective metric was green for a
-> version that sounded terrible**, which is the reason the motion work later
-> insisted on a person looking at the robots rather than reading a report.
-
-The two singers sing **the actual words**. Nothing in `gm.dls` can do that — its
-Choir Aahs is a static looped vowel — so the voice comes from somewhere else.
-
-The chain: speak each line naturally with a neural TTS **child** voice, then
-replace only its pitch and timing with the score's.
+出力は既存サンプラーが読む形式そのまま（WAV + `manifest.json`）なので
+`SampleLibrary` は無改造。将来実録音が手に入ったら manifest のエントリを
+差し替えるだけで乗り換えられる。
 
 ```
-lyrics.py (lines + syllable splits)
-  → tts.py      edge-tts, per-word timings, cached to samples/voice/
-  → singer.py   WORLD: f0 / spectral envelope / aperiodicity
-                ├ time-warp anchored on syllable boundaries
-                ├ f0 ← the melody (portamento, vibrato, scoop)
-                └ resynthesize, envelope untouched
-  → voice_lead.wav · voice_harmony.wav
+mande.py  →  make_mande_samples.py  →  samples/mande/*.wav + manifest.json
+          →  sampler（ゾーン = 打法 / 棒 / 弦）
+          →  render.py (22050 Hz)  →  16000 Hz へ  →  アンサンブル均し
+          →  songs/lamban/audio/<part>.wav      1台につき1本
 ```
 
-**The envelope is never touched**, and the envelope is what makes a vowel that
-vowel. Only the excitation moves. That is the whole trick.
+間違えやすい点が2つ:
 
-### The first attempt, and why it failed
+**ゾーン番号は音高ではない。** マニフェストの `unity_note` に「その波形が本来
+鳴らす音」を書くと、`play_note` の音程比が 1.0 になって**合成した周波数がそのまま
+鳴る**。だから 12平均律を経由せずに任意の音律が出せる。代わりに MIDI ノート番号は
+「何番目の棒か」「どの打法か」を指す記号になる。マニフェストには `"tuned": true`
+を立ててあり、`Instrument.auto_tune()`（12平均律からのずれを誤差として補正する）を
+通さない。通すと焼き込んだ音律が壊れる。
 
-It was built once with per-syllable Windows SAPI plus LPC resynthesis, and the
-result was unusable. Four causes, each sufficient on its own:
+**16 kHz は選択ではない。** ロボットの音声経路が固定でこの形式を要求する
+（`media/audio_base.py:59-60`）。可聴帯域は 8 kHz まで。参考元はタンバリンの
+エネルギーの69%が 8 kHz 超にあって別の楽器に聞こえる事故を起こしていた。
+ここでは合成の段で 7 kHz にローパスして最初から帯域内に収めている ――
+後から音程を下げて救うより素直。実測で全楽器 8 kHz 超のエネルギーは 0.0%。
 
-| | |
-|---|---|
-| syllables synthesized **separately** | no coarticulation — people don't talk like that, so it fails as *language* no matter how good the pitch is |
-| SAPI Zira is an **adult** voice, f0 ≈ 190 Hz | the melody is 294–784 Hz, so it needed an octave-plus of shift, and faking a child with a ×1.2 formant warp made it worse |
-| 22nd-order all-pole fit | too coarse an envelope; detail is lost |
-| pulse-train excitation, **binary** voiced/unvoiced | classic vocoder buzz, and fricatives break |
-
-The replacement removes all four rather than tuning any of them:
-
-| | |
-|---|---|
-| speak **whole lines** | there are no seams to hide |
-| `en-US-AnaNeural` / `en-GB-MaisieNeural` are **children**, measured f0 median 295 / 297 Hz | overlaps the melody already; the shift is semitones, and no formant faking is needed at all |
-| WORLD CheapTrick | not an all-pole approximation |
-| WORLD D4C aperiodicity | a per-band ratio, not a binary flag, so fricatives and breath survive |
-
-### Details that had to be right
-
-- **Stretch the vowel, not the syllable.** Uniform stretching turns "s" into
-  "ssss". Frames that are voiced *and* strong absorb the surplus; consonants pass
-  through at 1:1. A 3× stretch of a 20-vowel/20-consonant syllable puts 100 of the
-  120 output frames on the vowel.
-- **Unvoiced source frames stay unvoiced.** Forcing f0 onto them turns "s" and
-  "th" into vowels and destroys the word. The first version did exactly that.
-- **Fill rests before smoothing the pitch line.** Rests are stored as 0 Hz, so
-  smoothing across one drags the neighbouring note down — it reached 27 Hz.
-- **Never let the envelope hit exactly 0.** WORLD takes its log during synthesis;
-  the fade-in at a line's edge produced `-inf` → NaN, and every voice stem came
-  out silent with no error. It is floored at 1e-14 and non-finite output is now
-  counted and reported rather than quietly zeroed.
-- **Two children, not one child twice.** Same voice for both parts fuses into one.
-  They differ in source voice, vibrato rate, and detune.
-- **Refuse on a word-count mismatch.** If the synthesizer returns a different
-  number of words than the lyric expects, every later syllable is off by one.
-  Better to stop.
-
-Measured, `voice_lead`, first six lines:
-
-| | |
-|---|---|
-| pitch error | median −0.1 cent, \|error\| median 4.9 cent |
-| line duration | exact to the sample (0.0 ms over 6 lines) |
-| f0 span | 286–797 Hz (melody D4–G5 = 294–784) |
-| syllables vs notes | 132 / 132 lead, 78 syllables over 64 counterpoint notes |
-
-### The one thing this can't tell you
-
-Whether the words are actually *intelligible* is not measurable here, and the
-numbers above were all green for the version that sounded terrible. Listen to it:
-
-```bash
-python tools/preview_song.py songs/small_world --only voice_lead voice_harmony
-```
-
-### Network
-
-This is the only part of the build that reaches the internet, and it does so
-**on the PC, once**. Lines are cached under `samples/voice/`; the show plays
-baked WAVs. The robot network stays isolated. Rebuild with
-`python tools/make_voice_bank.py`, or pass `--offline` to fail loudly instead of
-fetching.
-
-Like the `gm.dls` samples, the cached voice audio is Microsoft's, so
-`samples/voice/` is gitignored and only the script is committed.
-
----
+**1台につき1本のステム。共有ミックスにはしない。** 9台が同じ音を数ミリ秒ずれて
+鳴らすとコムフィルタになって痩せる。別々のパートなら残ったズレは「9人が演奏して
+いる」ように聞こえ、しかも音の出る場所と動く場所が一致する。
 
 ## Layout
 
@@ -617,24 +261,24 @@ orchestra/
   fleet/               discovery · health · ssh · link (agent control channel)
   clock/               Cristian's algorithm + drift tracking
   show/                build · deploy · run
-  web/                 the browser console: export · runner · server · static/
-  web/static/          app · stage (seating, post, twin) · instruments · environment · palette
   preview/             single-robot playback · plots
 orchestra/audio/
-  sampler.py · render.py   instruments: real recordings, not synthesis
-  lyrics.py · tts.py · singer.py · svs.py
-                           the retired singing chain — unused by this song
+  mande.py             8つのマンデ楽器の数値合成（モーダル / Karplus-Strong）
+  sampler.py           ゾーン = 打法・棒・弦。音律は焼き込み済み（tuned）
+  render.py            プリセット表とステムのレンダリング・均し
 agent/
   orchestra_agent.py   runs ON each robot
   audio_stream.py      explicit-PTS PCM streaming into the robot's speaker
 clips/                 authored motion, beat-relative keyframes
-  _retired/            the physical-instrument clips, kept with a note on why
-samples/generated/     extracted from gm.dls — gitignored, see the licence note
-samples/voice/         spoken lyrics — gitignored for the same reason
-songs/small_world/     song.yaml · MIDI · per-robot audio stems
-tools/                 extract_samples · make_stems · preview_song · skew
-deploy/                the console as a resident systemd user service
-tests/                 232 tests
+                       すべて中立で始まり中立で終わる（下の注記を参照）
+samples/mande/         合成した音源 — gitignored、いつでも再生成できる
+songs/lamban/          song.yaml · MIDI · per-robot audio stems
+tools/
+  make_mande_samples   音源合成      audition_samples  合成音の試聴
+  make_lamban          採譜 -> MIDI  make_clips        クリップの初回オーサリング
+  make_stems           ステム        preview_song      全部を足して試聴
+  measure_skew · sync_selftest · import_midi · install_ssh_keys
+tests/                 185 tests
 docs/EXPERIMENTS.md    what still has to be measured on hardware
 ```
 
@@ -648,8 +292,8 @@ robot plays.
 
 ```jsonc
 {
-  "name": "woodblock_strike",
-  "instrument": "woodblock",
+  "name": "sangban_beat",
+  "instrument": "sangban",
   "units": { "translation": "mm", "rotation": "deg" },
   "placement": "trigger",
   "anchors": [0.3],          // ← the instant SOUND IS PRODUCED
@@ -695,6 +339,35 @@ through `goto_target` and the same clip played by the agent are the same motion.
 
 ---
 
+### クリップは中立で始まり中立で終わる
+
+この編成で一番手こずったのはここ。コンパイルは**中立からの差分の足し算**なので、
+クリップが中立以外の値で終わると、その差分が「常時かかるオフセット」として残る。
+16分音符で発火するパートは1打あたり4つ前後のクリップが重なるため、わずかな
+居残りが4倍に積み上がる。
+
+実際に起きたこと ―― コラのクリップはアンテナを 18° から始めて 18° で終えていた
+（中立は 10°）。差分 +8° が常時、しかも重なって積算され、**アンテナが可動端の
+150° に張り付いた**。厄介なのは自動フィットが効かなかったこと: 振幅を 1/34 まで
+縮めても実効値が全く下がらない。**振幅ではなくオフセットの重なりだった**ので、
+振幅をいくら縮めても中立からの居残りは消えなかった。
+
+```
+症状: antenna_r が -150°〜-2° を振り回す。song fit が「収束しない」で終わる。
+     ears x0.536 -> x0.313 -> x0.178 -> x0.099 -> x0.053 -> x0.029  実効値 4.93 のまま
+原因: クリップの静止値が中立と違う。placement は加算合成。
+直し: 全トラックを中立始まり・中立終わりに書き直す。実効値 4.93 -> 2.28
+```
+
+分担はこう考えるのが正しい:
+
+- **持続する姿勢は `persona.Stance` が持つ。** 定常オフセットなので速度ゼロ、
+  発熱制限に一切効かない。だから大きく取れる。
+- **クリップは打点の前後だけ動いて、必ず中立へ帰る。** タイミングを伝えるのが
+  仕事で、個性を伝えるのは仕事ではない。
+
+`tools/make_clips.py` はこの規則で書いてある。
+
 ## The cast
 
 Reachy Mini has **9 motors and no arms**: 6 Stewart actuators driving the head,
@@ -731,15 +404,21 @@ and the per-note strike is now only the third of them:
 
 | Robot | Part | Swing | Period | How you recognise it |
 |---|---|---|---|---|
-| r01 | conductor | — | — | Beat patterns with prep, ictus and cutoff. Turns its body to face sections. Procedural, not a clip. |
-| r02 | celesta (lead) | ±8° | 4 beats | Nearly front-on, looking down at a keyboard, traversing sideways over four bars. |
-| r03 | vibraphone (counter) | ±15° | **3 beats** | The only one that keeps ringing after the hit — the shimmer stays. |
-| r04 | glockenspiel | ±6° | **1 beat** | **The only chin-up robot**, ears held high, small circle. |
-| r05 | marimba | **±16°** | 2 beats | Swings hardest, looks down deepest, ears folded. |
-| r06 | wood block | ±17° | 4 beats | Sharp single hits that stop dead. **One ear up, one down.** |
-| r07 | tambourine | ±13° | 2 beats, **offbeat** | **Head permanently cocked** — the only one. |
-| r08 | shaker | ±7° | 1 beat, **antiphase** | Never stops. Tilts the opposite way to r07. |
-| r09 | jingle bells | ±14° | 2 beats, **offbeat** | **Ears in a class of their own** (±95°). The head barely moves. |
+| r01 | lead (djembefola) | — | — | Faces the audience. Beat patterns with prep, ictus and cutoff; calls and breaks. Procedural, not a clip. |
+| r02 | balafon | ±13° | 4 beats | **Travels furthest sideways** — three octaves of bars, crossed over four bars. Looks down at them. |
+| r03 | kora | ±4° | 4 beats | **The stillest robot; the ears do the playing.** 21 strings plucked by thumbs and index fingers — the body never moves. |
+| r04 | ngoni | ±7° | **1 beat** | **Leans in deepest** and rides every single beat. Fastest period on the floor. |
+| r05 | tama | ±10° | 2 beats, **offbeat** | **Permanently cocked to one side** — the drum is held under an arm. **The only asymmetric ears.** |
+| r06 | djembe | ±15° | 2 beats | **The deepest vertical strike** — struck with bare hands, so it falls furthest and rebounds hardest. |
+| r07 | dundunba | ±15° | **8 beats** | **Lowest, slowest, largest arc.** The ears stay out of it; the weight of the upper body is the whole point. |
+| r08 | sangban | ±13° | 4 beats, **antiphase** | Mirrors r07 — **opposite facing, opposite phase, half the period.** The two dununs read as a conversation. |
+| r09 | karignan | ±7° | 1 beat, **antiphase** | **Never stops** — scraping *is* the sound, so there is no instant of rest. Tilts the opposite way to r05. |
+
+**構えは互いに違う軸で立てる。** 全員が同じ軸で大小を競うと「なんとなく違う」に
+しかならない。体の向き（dundunba +14° / sangban −14°）、高さ（kora が最も高く
+dundunba が最も低い）、傾き（tama だけが傾ぎ続ける）、耳（kora だけ別格に開き、
+tama だけ左右非対称）、止まらない（karignan だけ）、拍の周期（1 → 2 → 4 → 8 拍に
+散らす）。
 
 **Body yaw is centred on forward for all nine.** An earlier version parked each
 robot at a fixed angle (marimba −55°, wood block +55°) so they faced permanently
@@ -750,8 +429,8 @@ Measured after the change — `body_yaw_peak_deg` from `song build --report`,
 against the 2.5° that every robot shared before:
 
 ```
-r05 marimba 26.9    r06 wood block 19.0    r03 vibraphone 16.9    r09 bells 15.6
-r07 tambourine 14.7 r02 celesta    10.5    r08 shaker      8.5    r04 glock  8.2
+r08 sangban 49.2   r07 dundunba 42.1   r05 tama     35.3   r02 balafon 23.8
+r06 djembe  17.2   r04 ngoni     9.4   r09 karignan  9.3   r03 kora     6.3
 ```
 
 Up to **10.8×**. The spread matters more than the magnitude: if all nine landed
@@ -769,6 +448,8 @@ nothing — is wrong, and the safety gate proved it:
 ```
 r04 glockenspiel   joint_vel_peak  3.078 -> 3.763   (+22 %, ceiling 4.0)
 r02 celesta        joint_vel_peak  3.508 -> 3.801   (+8 %)
+（上は参考元の編成での実測。この編成でも同じことが起きるので、構えを触るたび
+ `orchestra song build lamban --report` を読むこと。現状の最悪値は上限の 84 %）
 r05 marimba        joint_vel_peak  2.710 -> 2.747   (+1 %)
 ```
 
@@ -798,23 +479,44 @@ both together.
 
 ## The shape of a show
 
-A program is **144.4 s**. The music is the middle 99 s of it.
+A program is **204.3 s**. The music is the middle 149 s of it.
 
 ```
   0.0 –   1.0   wake into the waiting pose
-  0.0 –   4.5   the conductor turns 180° to the audience, bows and turns back
-  4.5 –  27.7   eight introductions, 2.9 s each:
-                  0.7 s  the conductor cues that robot
-                  1.9 s  that robot sounds its instrument, moving big
-                  0.3 s  gap
+  1.0 –   5.2   the lead greets the audience
+  5.2 –  33.6   eight introductions, 3.55 s each:
+                  1.0 s  the lead cues that robot
+                  2.2 s  that robot sounds its instrument, moving big
+                  0.35s  gap
                 everyone else holds one identical pose, completely still
- 27.7 –  30.7   the conductor's last cue: all nine lift their faces together
- 33.2           T0. the piece begins
-127.7 – 132.2   final chord, held 6 beats; sound and motion decay together
-132.5           ears go up, faces level
-133.4 – 138.1   bow, held (ears fold with the head)
-139.9 – 142.9   stow: the head sinks 44 mm, ears fold back
+ 33.6 –  36.6   the last cue: all nine lift their faces together
+ 39.1           T0. the piece begins at 96 BPM
+                  bars  0- 3   balafon alone — the tuning and the 2-bar cycle
+                  bars  4- 7   kora and ngoni enter
+                  bars  8- 9   karignan locks the cycle
+                  bar  10      the lead's call; the dununs enter on its last beat
+                  bars 11-22   slow "song" section        100 BPM
+                  bars 23-30   the tama answers           104 BPM
+                  bars 31-38   balafon descending runs    108 BPM
+                  bar  39      break
+                  bars 40-51   fast section               112 BPM
+                  bars 52-63   échauffement — the sangban signals it,
+                               the dundunba goes near-continuous   116 BPM
+                  bars 64-65   ending figure              120 BPM
+188.4           the piece ends
+190.6 – 195.8   bow, held (the lead turns its body 180° to face the audience)
+199.4 – 202.8   stow: the head sinks 44 mm, ears fold back
 ```
+
+**加速は構造であって演出ではない。** 「マリの曲は歌と共に遅く始まり、踊りと共に
+速くなる」というのは Lamban について文献に書かれていることで、échauffement
+（加熱部）はその形式化された名前が付いた区間。サンバンが始めを告げ、サンバンの
+一撃で終える ―― これも記録されている手順。
+
+**上限 120 BPM は音楽ではなく安全ゲートが決めている。** 発音する動作の間隔は
+110 ms 以上でなければならず（`gesture_min_interval_s`）、16分音符は 120 BPM で
+ちょうど 125 ms。ここが天井。実測の最小間隔は 125 ms（r03/r06/r07）。
+文献にある Lamban の標準テンポは 110 BPM なので、この天井の内側に収まっている。
 
 Three things make this hold together, and each was a bug first.
 
@@ -860,12 +562,12 @@ for a sideways displacement it cannot reach (`stewart_1` at −0.965 against a
 ## Development workflow
 
 ```bash
-orchestra clip record --robot r07 --out clips/shaker/mine.clip.json --bpm 112
+orchestra clip record --robot r07 --out clips/dundunba/mine.clip.json --bpm 110
        # gravity-comp hand puppeteering → 100 Hz capture → simplified keyframes
-orchestra clip check --clip shaker/mine --bpm 112 --bpm 140   # gate, per tempo
-orchestra clip plot  --clip shaker/mine --bpm 140             # see the margin
-orchestra clip preview --clip shaker/mine --robot r07         # one robot
-orchestra song build small_world --report                     # all nine
+orchestra clip check --clip dundunba/mine --bpm 96 --bpm 120  # gate, per tempo
+orchestra clip plot  --clip dundunba/mine --bpm 120           # see the margin
+orchestra clip preview --clip dundunba/mine --robot r07       # one robot
+orchestra song build lamban --report                          # all nine
 ```
 
 `clip check` takes the tempo because **a clip safe at 90 BPM can be unsafe at
@@ -880,9 +582,9 @@ dramatically faster than typing angles for anything that has to look alive.
 ## Verification
 
 ```bash
-pytest -q                              # 113 tests
+pytest -q                              # 185 tests
 python tools/sync_selftest.py --agents 9   # protocol, sync, abort, deadman
-python tools/measure_skew.py rec.wav --bpm 112   # the measurement that counts
+python tools/measure_skew.py rec.wav --bpm 110   # the measurement that counts
 ```
 
 The self-test spawns nine agents in dry-run and drives the real show sequence.
@@ -899,9 +601,23 @@ verified: when one robot emitted a 1 kHz tone, the listener's 1 kHz share went
 is conducting:
 
 ```bash
-orchestra show run small_world --record r01     # records, pulls the WAV back
-orchestra calibrate skew calib --recording calib-r01.wav calib-r06.wav --mode waveform
+python tools/make_pingtest.py                              # トーン型の測定音
+orchestra song build pingtest && orchestra show deploy pingtest
+orchestra show run pingtest --record r02 --skip-preflight  # 位置を変えて3-4回
+orchestra show run pingtest --record r07 --skip-preflight
+python tools/measure_ping.py
 ```
+
+⚠ **`calibrate skew` + `make_calibration.py`（帯域制限ノイズ）は実機のマイクでは
+効かない。** 2026-08-28 に7箇所から録って確認した ―― 波形相関 corr 0.010-0.020
+＝無相関で、出る値はバースト間隔 1.5 秒の倍数（隣のスロットへの誤ロック）。
+理由は Reachy のマイクが音声用の前段 DSP を通ること。**雑音抑圧は定常ノイズを
+消す機能で、帯域制限ノイズはその標的そのもの**。PC 上では理想的な設計が、
+実機のマイクを通した瞬間に成立しなくなる。
+
+`tools/make_pingtest.py` はトーン（35 ms の減衰正弦、台ごとに別周波数）を使い、
+狭帯域フィルタでその台だけを抜く。SNR x43-x3697、8回中8回検出、位置ごとの
+再現性 1.2-7.2 ms まで来た。詳細は `docs/EXPERIMENTS.md`。
 
 Two things this taught, both worth keeping:
 
@@ -925,9 +641,39 @@ per-robot figure into a positional part and a part that survives every vantage
 point; only the latter is a candidate for `audio_lead_ms`, and so far nothing has
 cleared that bar. Every unit's value is still **0.0**, on purpose.
 
-The fleet's own timing is verified separately and does hold up: start error
-0.3–1.5 ms, clock-sync uncertainty 1.95 ms, 10400/10401 frames on all nine with
-zero late ticks.
+**2026-08-28、Lamban を実機9台で通した実測**（`orchestra show run lamban --record r01`、
+207.8 秒、completed 9 / dropped 0 / failed 0）:
+
+```
+  robot   start_err     frames        late
+  r01      0.843 ms   20430/20431      0
+  r02      1.330 ms   20430/20431      0
+  r03      0.509 ms   20430/20431      0
+  r04      0.472 ms   20430/20431      0
+  r05      0.567 ms   20430/20431      0
+  r06      0.595 ms   20430/20431      0
+  r07      0.894 ms   20430/20431      0
+  r08      0.642 ms   20430/20431      0
+  r09      0.795 ms   20430/20431      0
+  clock-sync worst-case uncertainty 1.80 ms   rtt_min 3.32-3.61 ms
+```
+
+参考元（小曲、112 BPM、10401 フレーム）と同じ水準が、**8.5倍長い曲（20431 フレーム、
+96→120 BPM の加速つき）でも保たれている**。遅延フレームはゼロ。
+
+**この曲でも「曲は測定信号にできない」が再現した。** Lamban の録音を各ステムと
+相関させると、二番手との比が 1.00〜1.14 でピークが立たない ―― 循環定型の曲なので
+当然で、参考元が *It's a Small World* で踏んだのと同じ罠。専用の校正音
+（`tools/make_calibration.py`）に切り替えるのが正しい。
+
+**さらにこの卓上配置では、r01 の内蔵マイクが自機と隣の1台しか拾えなかった。**
+校正音の録音を直接見ると、r01 と r02 のバーストだけが録れていて（録音 3.6-5.2 秒、
+振幅 0.95）、r03-r09 の 40 秒ぶんはほぼ床ノイズに埋もれていた。相関値 0.007-0.017。
+外部マイクをアンサンブルの正面に置いて録るのが要る。`orchestra calibrate skew` は
+任意の WAV を受け付けるので、録音機さえあれば手順は変わらない。
+
+`audio_lead_ms` が全機 **0.0 のままなのは意図的**（上の「単一マイクでは何も較正できない」
+を参照）。値を入れると、録音した1点以外のすべての聴取位置で意図的にずらすことになる。
 
 ### Being wrong on purpose is cheaper than being wrong by accident
 
@@ -987,88 +733,81 @@ on hardware, and which parts of the design each answer would change.
 
 ## Note on the music
 
-*It's a Small World* (Sherman Brothers, 1963) is under copyright. Private and
-internal use is normally unproblematic; public performance or streaming is a
-separate question. The pipeline is song-agnostic — point it at any MIDI file.
+**Lamban** は伝統曲で、著作権者のいる作品ではない。演奏や配信に法的な障害は無い。
+一方で「伝統である」ことは「何を鳴らしても伝統になる」ことを意味しないので、
+**どこまでが出典のある採譜で、どこからが私の再構成か**を全部書き残してある。
+`tools/make_lamban.py` の各定数に `[DOC]` か `[RECON]` が付いている。
 
-The score in the repo is a **real transcription**: 32 bars, verse and chorus,
-80 BPM, 652 notes across six tracks. It was found as a freely-downloadable MIDI
-(a `ROL2MID` conversion mirrored on several free MIDI archives) and imported with
-`tools/import_midi.py`, which renames source tracks to the names `song.yaml`
-binds parts to.
+### [DOC] — 出典のある採譜
 
-It replaced a melody written from memory — which turned out to be **wrong**. The
-real chorus climbs a whole step on each repetition:
-
-| | |
-|---|---|
-| It's a small world after all | C5 C5 \| **E5** C5 D5 |
-| It's a small world after all | D5 D5 \| **F5** D5 E5 |
-| It's a small world after all | E5 E5 \| **G5** E5 F5 |
-| It's a small, small world | F5 E5 D5 G4 \| B4 C5 |
-
-The from-memory version kept it level. Two independent sources agree on the
-rising form: the downloaded MIDI, and a free piano tutorial that spells the same
-three steps. `tools/make_small_world.py` still generates the wrong one — it is
-kept as a fallback for songs with no MIDI, and now refuses to overwrite the real
-score without `--force`.
-
-Which track goes where matters more than usual, because this song's signature is
-a **counterpoint**: the verse melody plays *over* the chorus.
-
-| Track | Part | |
+| 何 | 中身 | 出典 |
 |---|---|---|
-| Melody | `lead` (celesta) | the tune |
-| Counter | `counter` (vibraphone) | ⭐ the verse played against the chorus |
-| Harmony | `glocken` | offbeat comping, present throughout |
-| Bass | `marimba` | bass line, which suits the low lateral gesture |
+| サンバンの太鼓 | 16分 1,4,7,9,12,15 = **3+3+2 \| 3+3+2**。この曲の署名 | Nas p.65（Ponda O'Bryan）。Griot 項 p.98 にも同形 |
+| サンバンの鈴 | 16分 1,3,4,6,7,9,11,12,14,15 | 同上 |
+| ドゥンドゥンバ | 太鼓 4,7,13,15 / 鈴 1,3,4,6,7,9,11,13,15 | 同上 |
+| ケンケニの鈴 | 8分の等間隔 ―― **カリニャンに移した** | 同上（楽器の割当は私の判断） |
+| ジェンベ伴奏 | 8分格子 `B . O O . . S S` | Malcolm Smith / Nansady Keita 伝、110 BPM |
+| 合図(call) | `T T S S \| T S T T \| S . . .` | Nas p.65（Ponda O'Bryan） |
+| ブレイク | `F . T T \| . T . T \| T . S S \| S . . .` | Nas p.98（Griot 項） |
+| échauffement | djembe `. S S S` の連打 / dununba ほぼ連打 | Nas p.98（Griot 項） |
+| 終止 | dununba `x D D D \| . x D . \| x . x . \| D D . D` | 同上 |
+| バラフォンの**リズム** | 三連分割、2小節周期、拍2と拍4の1つ目と3つ目に打 | Williams 2006 Fig.7（Siriman Kouyate Acc.1）を実際に読んだもの |
+| バラフォンの音律 | 等間隔七音、1ステップ 171.43 cent | Williams 2006 ch.6、Sosso-Bala（ユネスコ無形文化遺産） |
+| コラの調弦 | **Sauta** F 185 G 220 A 200 B 95 C 185 D 220 E 95 f | kora-music.com「Scales and Tunings」。Lamban への帰属は Amadu Jobarteh |
+| 加速構成 | 「遅く始まり速くなる」／サンバンが加熱部を始め、一撃で終える | Nas p.64, p.79 |
 
-### The transcription fades out; it does not end
+**拍子について。** Lamban は **2分割（4/4）**。12/8 で書かれた採譜も存在するが、
+資料を突き合わせるとそれは同じ音楽をスウィングして読んだもので、別の地方版という
+根拠は見つからなかった。Charry は 4/4 を所与として「なぜジェンベ奏者は 4/4 の
+伴奏形を選んだのか（三連のノリで弾かれることもあるのに）」と問うている。
+Nas は拍子を変える代わりに「2番目と10番目のパルスがわずかに遅れる」という
+微視的な指示を書いている。
 
-The MIDI is an amusement-park loop, so it has no cadence — it just gets quieter
-and stops mid-phrase. Measured melody velocities over the last few bars:
+そして **Williams のバラフォン採譜は 4/4 の中が三連符で埋まっている**。
+つまり同じ小節の中で dunun と djembe が4分割、balafon が3分割を刻む ――
+これが「二分割と三分割は矛盾ではなく相補である」という Williams の主張の実体で、
+この曲の一番面白いところ。ここではそのまま実装している（balafon は 1/3 拍刻み、
+それ以外は 1/4 拍刻み）。
 
-```
-94 -> 86 -> 72 -> 56 -> 11 -> 8      then two stray notes at 34 (the next repeat)
-```
+### [RECON] — 出典のある制約を満たす再構成
 
-That is why it sounded like the piece was never finished: it wasn't. The
-`finale:` block in `song.yaml` fixes it in three steps — `unfade_from_bar`
-restores the velocities, `trim_after_bar` drops the stray pickup, and `at_bar`
-lays a tonic chord under the melody's held note so the ensemble lands together.
+- **バラフォンの音そのもの。** Williams の図（Fig.6-9、3人の名のある奏者の伴奏形
+  5種）は走査画像で、音符の**高さ**までは確度をもって読めなかった。自動採譜も
+  試したが、中途半端な音符検出は「もっともらしく間違う」ので採らなかった。
+  本文で明示されている制約 ―― 2小節周期・片手が最低音の反復・拍2と拍4は同じ音の
+  反復・和声は3拍目で変わる・下行する走句が即興の語彙 ―― だけを満たしてある。
+  **ここを埋めたい人へ**: Williams 2006 の物理 PDF 123-126ページを高解像度で
+  レンダリングして読むのが最短。
+- **コラの kumbengo とンゴニ。** Lamban の kumbengo の採譜は見つからなかった。
+  出典があるのは奏法の原理だけ（親指が低音で周期を刻み、人差し指が旋律を運ぶ／
+  kumbengo は「すべての変奏が戻ってくる点」／birimintingo は下行する走句で
+  フレーズの切れ目に置き必ず kumbengo に戻る）。低音をサンバンの 3+3+2 に
+  合わせてある。
+- **タマ。** Lamban のタマ譜は無い。役割だけが文献にある（ジェリの三大楽器の
+  1つ、紐を締めて音程を連続的に変える）。周期性の最も低いパートとして
+  2小節周期の終わりに短い応答を置いた。
+- **区分と小節数。** 仕組みは全部出典があるが、長さの割り振りは私。
 
-The chord is appended **to the timeline**, not to the stems, so motion and audio
-both pick it up from one source. Where a track already sounds on that beat the
-chord **replaces** that note rather than adding one — two placements on the same
-beat sum their amplitude and pushed the marimba to 5.54 rad/s against the 4.0
-ceiling.
+### 知りつつ落としたもの
 
-That assignment was inverted at first — `Counter` given to the glockenspiel and
-`Harmony` to the second melodic voice. The names invite it: "Harmony" sounds like
-the supporting part and "Counter" like a filler one. Previewing the tracks showed
-the opposite. `Harmony` is offbeat comping; `Counter` is the real counterpoint,
-and it is the one line in this song that has to be carried by a voice the ear can
-follow, because the whole effect is hearing two melodies at once.
+- **ケンケニと2台目のサンバン。** Nansady Keita 伝では Lamban は例外的に
+  **dunun を4台**使う（kenkeni + サンバン2台 + dundunba）。「3人しかいなかったら
+  どうするか」と訊かれて彼は「**その時は Lamban を演らない**」と答えている。
+  8台に8種を割り当てる制約からこれを 2台に減らしたのは、承知の上の縮約。
+  ケンケニの鈴（唯一の等間隔の層）はカリニャンが引き継いでいる。
+- **スウィング（2番目と10番目のパルスの遅れ）。** 実装していない。遅らせると
+  次の打点との間隔が 110 ms を割って安全ゲートに落ちるため。8分格子の
+  ジェンベ伴奏を採ったのはこの制約も理由。
 
-Swapping in a different score:
+### 出典
 
-```bash
-python tools/import_midi.py yours.mid --list          # see what's in it
-python tools/import_midi.py yours.mid --preview 1     # is track 1 really the tune?
-python tools/import_midi.py yours.mid --song songs/small_world     --map 1=Melody 3=Harmony 4=Counter 5=Bass
-orchestra song build small_world
-python tools/make_stems.py songs/small_world
-orchestra show deploy small_world
-```
-
-Track numbers are never guessed for you. A wrong guess plays a different line at
-full volume, which is far harder to notice than silence. The sampler was checked
-from C2 to C7 and stays audible across that span, so an unfamiliar key will not
-silently render nothing either.
-
-The samples are extracted from **`gm.dls`, which is Microsoft-distributed and
-Roland-authored**. Playing them on your own machine is one thing; committing or
-redistributing the extracted WAVs is a separate decision that nobody here has
-made. So the repository holds **the extraction script only** — the output lands
-in `samples/generated/`, which is gitignored. Anyone cloning this runs
-`tools/extract_samples.py` once against their own Windows install.
+- Paul Nas / WAP Pages, *African Rhythms*（PDF）pp.64-71（Lamban）, pp.97-100（Griot）, 記譜法 pp.6-7
+  https://djembefoley.ca/wp-content/uploads/2012/03/african-rhythms.pdf
+- Joe L. Williams Jr., *Transmitting the Mande Balafon*, PhD diss., Univ. of Maryland 2006, pp.113-120
+  https://api.drum.lib.umd.edu/server/api/core/bitstreams/fc947982-218f-4e87-ab9e-f6f81e71be05/content
+- Malcolm Smith, *Lamban*, Vitae Drum Circle — https://www.thesmith.org.uk/music/projects/vitae/rhythms/lamban.html
+- Tontinkan, *Lamban* — https://tontinkan.net/wp/lamban/
+- Eric Charry 編 mandebala.net — http://www.mandebala.net/references/lamban.php
+- kora-music.com, *Scales and Tunings* — https://www.kora-music.com/e/skalen.htm
+- D. Racanelli, *Formulaic Variation Procedures in Mande Griot (Jeli) Guitar Playing*, AAWM 2.1 (2012)
+- Eric Charry, *Mande Music*（未参照。Lamban は pp.150-153、バラフォン伴奏形は pp.184-187）

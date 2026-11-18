@@ -10,7 +10,7 @@ from conftest import needs_sdk
 from orchestra.motion.compile import compile_clip_preview
 from orchestra.motion.validate import validate_clip, validate_program
 
-TARGET_BPM = 112.0
+TARGET_BPM = 120.0
 
 
 def test_library_loads_without_errors(lib):
@@ -43,7 +43,7 @@ def test_sounding_clips_have_anchors(lib):
 
 
 @needs_sdk
-@pytest.mark.parametrize("bpm", [90.0, TARGET_BPM, 130.0])
+@pytest.mark.parametrize("bpm", [96.0, TARGET_BPM, 132.0])
 def test_all_clips_pass_at_performance_tempos(lib, fleet_cfg, bpm):
     failures = []
     for key in lib.keys():
@@ -74,11 +74,11 @@ def test_clips_have_real_velocity_headroom(lib, fleet_cfg):
 
 
 @needs_sdk
-def test_small_world_builds_and_validates(ctx):
+def test_lamban_builds_and_validates(ctx):
     from orchestra.music.score import load_score
     from orchestra.show.build import build_show
 
-    score = load_score(ctx.songs_dir / "small_world")
+    score = load_score(ctx.songs_dir / "lamban")
     build = build_show(ctx, score, validate=True)
 
     assert not build.problems, build.problems
@@ -97,16 +97,16 @@ def test_every_cast_robot_has_a_stem(ctx):
     """
     from orchestra.music.score import load_score
 
-    score = load_score(ctx.songs_dir / "small_world")
+    score = load_score(ctx.songs_dir / "lamban")
     silent = [name for name in score.cast if not score.parts[name].audio]
     assert not silent, f"配役されているのにステムが無い: {silent}"
 
 
-def test_small_world_stems_exist_on_disk(ctx):
+def test_lamban_stems_exist_on_disk(ctx):
     """`tools/make_stems.py` を流し忘れると、ビルドは通るのに全台が無音で踊る。"""
     from orchestra.music.score import load_score
 
-    song_dir = ctx.songs_dir / "small_world"
+    song_dir = ctx.songs_dir / "lamban"
     score = load_score(song_dir)
     missing = [
         p.audio for p in score.parts.values()
@@ -114,14 +114,14 @@ def test_small_world_stems_exist_on_disk(ctx):
     ]
     assert not missing, (
         f"ステムが無い: {missing}\n"
-        "python tools/make_stems.py songs/small_world で生成する"
+        "python tools/make_stems.py songs/lamban で生成する"
     )
 
 
-def test_small_world_cast_is_valid(ctx):
+def test_lamban_cast_is_valid(ctx):
     from orchestra.music.score import load_score
 
-    score = load_score(ctx.songs_dir / "small_world")
+    score = load_score(ctx.songs_dir / "lamban")
     assert not score.check_cast({r.id for r in ctx.robots})
 
 

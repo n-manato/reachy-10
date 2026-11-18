@@ -172,7 +172,7 @@ def main() -> int:
         print("\nthe agent path is now available:")
         print("  orchestra fleet provision")
         print("  orchestra fleet agent start")
-        print("  orchestra show deploy small_world && orchestra show run small_world")
+        print("  orchestra show deploy lamban && orchestra show run lamban")
     return 1 if (failed or bad) else 0
 
 

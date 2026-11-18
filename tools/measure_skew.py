@@ -2,7 +2,7 @@
 """Measure real cross-robot synchronisation from an audio recording.
 
     python tools/measure_skew.py rehearsal.wav --bpm 112
-    python tools/measure_skew.py rehearsal.wav --program build/small_world/r08.program.json.gz
+    python tools/measure_skew.py rehearsal.wav --program build/lamban/r08.program.json.gz
 
 WHY THIS TOOL EXISTS
 Every sync number the software can report is a number about the software. The

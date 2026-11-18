@@ -61,18 +61,6 @@ def read_wav_f32(path) -> tuple[np.ndarray, int]:
 
 CHUNK_S = 0.10          # 1回に押し込む長さ
 LOOKAHEAD_S = 1.5       # 再生位置よりどれだけ先まで積むか
-MIN_FADE_S = 0.5        # 時間が足りなくても、これより急には絞らない
-
-
-def faded(block: np.ndarray, first: int, start: int, length: int) -> np.ndarray:
-    """`block`（先頭が曲の `first` サンプル目）に音量の傾斜を掛ける。
-
-    `start` から `length` サンプルで 1 -> 0。S字にしておくと両端で傾きが 0 に
-    なるので、下がり始めも消え際も継ぎ目が聞こえない。
-    """
-    u = np.clip((first + np.arange(len(block)) - start) / max(1, length), 0.0, 1.0)
-    gain = (0.5 + 0.5 * np.cos(np.pi * u)).astype(np.float32)
-    return np.ascontiguousarray(block * gain[:, None], dtype=np.float32)
 
 
 class AudioStream:
@@ -102,9 +90,6 @@ class AudioStream:
         self.ratio_resid_ppm = 0.0  # 上の推定の残差。大きいほど信用できない
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
-        self._pts0 = 0
-        self._pushed = 0
-        self._fade: tuple[int, int] | None = None   # (開始サンプル, 長さ)
         self.started_at_monotonic: float | None = None
         self.stats: dict = {}
 
@@ -279,9 +264,6 @@ class AudioStream:
                 -margin_ms, self.latency_ns / 1e6)
 
         self._stop.clear()
-        self._pts0 = pts0
-        self._pushed = 0
-        self._fade = None
         self.started_at_monotonic = t0_monotonic
         self._thread = threading.Thread(
             target=self._feed, args=(pts0,), name="audio-feed", daemon=True)
@@ -310,10 +292,6 @@ class AudioStream:
         errors = 0
 
         while pushed < n_total and not self._stop.is_set():
-            fade = self._fade
-            if fade is not None and pushed >= fade[0] + fade[1]:
-                break                      # 絞りきった。この先は押し込まない
-
             # このチャンクが鳴るべき時刻が、今からどれだけ先か
             pts = pts0 + (pushed * Gst.SECOND) // rate
             now_running = self.running_time_at(time.monotonic())
@@ -324,8 +302,6 @@ class AudioStream:
 
             end = min(n_total, pushed + chunk)
             block = self.pcm[pushed:end]
-            if fade is not None:
-                block = faded(block, pushed, *fade)
             buf = Gst.Buffer.new_wrapped(block.tobytes())
             buf.pts = int(pts)
             buf.dts = int(pts)
@@ -337,7 +313,6 @@ class AudioStream:
                 if errors > 20:
                     break
             pushed = end
-            self._pushed = pushed
             sent += 1
 
         self.stats.update({
@@ -347,27 +322,6 @@ class AudioStream:
         })
         log.info("audio feed finished: %d chunks / %d frames (err %d)",
                  sent, pushed, errors)
-
-    def fade_out(self, until_monotonic: float) -> dict:
-        """`until_monotonic` に消えるよう、これから押し込む音を絞る。
-
-        **積んだ音は変えられない。** パイプラインは appsrc -> audioconvert ->
-        audioresample -> alsasink で音量素子が無いので、触れるのはまだ押し込んで
-        いない音だけ。先読みとレイテンシのぶん（約1.8秒）はそのまま鳴って、
-        その先から下がる。`SetVolumeCmd` で絞らないのは、ミキサーの書き込みに
-        最大2秒かかるので傾斜にならないから（`op_volume` を参照）。
-        """
-        if self._thread is None or not self._thread.is_alive():
-            return {}
-        # 1チャンク先から始める。供給スレッドが今まさに押している分は、もう
-        # 掛けられない。そこに傾斜の途中を置くと音量が段になる。
-        start = self._pushed + max(1, int(CHUNK_S * self.rate))
-        now = time.monotonic()
-        pts = self._pts0 + (start * 1_000_000_000) // self.rate
-        heard_in_s = (pts + self.latency_ns - self.running_time_at(now)) / 1e9
-        length_s = max(until_monotonic - now - heard_in_s, MIN_FADE_S)
-        self._fade = (start, int(length_s * self.rate))
-        return {"heard_in_s": round(heard_in_s, 3), "length_s": round(length_s, 3)}
 
     def stop(self) -> None:
         """供給を止め、まだ鳴っていない音を捨てる。
