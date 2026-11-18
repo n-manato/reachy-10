@@ -16,11 +16,11 @@ what it takes to re-voice the orchestra for a different repertoire.
 The three-robot exhibits live in a separate repository,
 [reachy-3](https://github.com/n-manato/reachy-3).
 
-## How this repository is maintained
+## Layout
 
-Each show is developed and run from its own working directory, and its commit
-history is merged in here with `git subtree`. `./sync.sh` pulls the latest
-commits from both working directories and pushes the result.
+One repository, one folder per show. Each folder is run in place: it holds its
+own virtual environment, and the systemd unit under `small-world/deploy/`
+points at it.
 
 Voice-bank and vocoder models, extracted instrument samples and reference
 audio are not redistributable and are not part of this repository; each

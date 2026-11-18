@@ -3,7 +3,7 @@
 
     python tools/make_mande_samples.py
 
-参考元（DEV/Reachy_10）は Windows の `gm.dls` から実録音を抜いていたが、
+参考元（../small-world）は Windows の `gm.dls` から実録音を抜いていたが、
 GM には kora も ngoni も balafon も djembe も dunun も無い。ここでは
 `orchestra/audio/mande.py` が数値合成する（理由はそちらの docstring に）。
 
