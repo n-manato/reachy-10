@@ -1,0 +1,104 @@
+{
+  "name": "sangban_beat",
+  "version": 1,
+  "instrument": "sangban",
+  "description": "サンバン（中型の dunun）をバチで打つ（エアー）。\n\n見分けの要点: **ドゥンドゥンバの鏡像**。同じ「バチで打つ」形だが、横移動の向きが逆で、周期は半分。アンサンブルの心臓と呼ばれるパートなので、ドゥンドゥンバより一段軽く、一段速い。\n\n3+3+2 という最も密な定型を叩くパートなので、打点の前後 0.55 拍で中立へ帰す。居残ると隣の打のぶんと足し算になる。\n\n[clip fit] scaled down to stay inside the envelope at 96, 120, 126 BPM: head x0.276. Timing and the shape of the path are unchanged.",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.2
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.07,
+        "pose": {
+          "y": 0.718,
+          "z": 0.9942,
+          "pitch": -0.8285
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "pose": {
+          "y": -0.718,
+          "z": -1.2151,
+          "pitch": 0.9942
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.28,
+        "pose": {
+          "y": -0.939,
+          "z": -1.3808,
+          "pitch": 1.1323
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.55,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.07,
+        "value": 0.718,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "value": -0.718,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.55,
+        "value": 0.0,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "value": [
+          -19.0,
+          19.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.55,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

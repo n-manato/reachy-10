@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+*.egg-info/
+.pytest_cache/
+config/calibration/*.local.yaml
+songs/*/audio/*.wav
+!songs/*/audio/.gitkeep
+songs/*/preview*.wav
+logs/
+*.log
+
+# 合成した音源（`python tools/make_mande_samples.py` で決定的に再生成できる）。
+samples/mande/

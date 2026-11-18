@@ -1,0 +1,101 @@
+{
+  "name": "ngoni_pluck",
+  "version": 1,
+  "instrument": "ngoni",
+  "description": "ンゴニを弾く（エアー）。\n\n見分けの要点: **最も深く前傾し、最も短い周期で刻む**。小さな皮張りの胴を抱え込んで覗き込む姿勢はペルソナの構えが持つ。減衰が速い楽器なので打点の動きも短く切れる。\n\nコラと同じ撥弦だが、あちらは顔が正面で耳が主役。こちらは頭が深く落ちる。\n\n[clip fit] scaled down to stay inside the envelope at 96, 120, 126 BPM: head x0.700. Timing and the shape of the path are unchanged.",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.15
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.06,
+        "pose": {
+          "z": 1.1195,
+          "pitch": -1.3993
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.15,
+        "pose": {
+          "z": -1.3993,
+          "pitch": 1.7492
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.21,
+        "pose": {
+          "z": -1.6792,
+          "pitch": 2.099
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.06,
+        "value": -1.0495,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.15,
+        "value": 1.0495,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "value": 0.0,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.15,
+        "value": [
+          -18.0,
+          18.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

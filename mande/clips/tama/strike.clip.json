@@ -1,0 +1,104 @@
+{
+  "name": "tama_strike",
+  "version": 1,
+  "instrument": "tama",
+  "description": "タマ（トーキングドラム）を曲がったバチで打つ（エアー）。\n\n見分けの要点: **傾きが主役で、耳が左右非対称**。ただし非対称も傾きも**構えの側**で作っている ―― 定常オフセットは速度を持たないので、動きで見せるより遥かに大きく取れる。ここは打点で roll が反対側へ返るぶんだけを担当する（紐を締めて放す動作に対応）。\n\nカリニャンも傾くが、あちらは往復し続けて止まらない。こちらは打点で止まる。\n\n[clip fit] scaled down to stay inside the envelope at 96, 120, 126 BPM: head x0.661. Timing and the shape of the path are unchanged.",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.22
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.09,
+        "pose": {
+          "z": 1.1892,
+          "roll": -1.7838,
+          "pitch": -0.8919
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.22,
+        "pose": {
+          "z": -1.4865,
+          "roll": 2.0811,
+          "pitch": 1.1892
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.31,
+        "pose": {
+          "z": -1.7838,
+          "roll": 2.5105,
+          "pitch": 1.4204
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.7,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.09,
+        "value": -1.3213,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.22,
+        "value": 1.3213,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.7,
+        "value": 0.0,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.22,
+        "value": [
+          -20.0,
+          20.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.7,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

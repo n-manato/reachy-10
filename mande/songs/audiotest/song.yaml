@@ -1,0 +1,60 @@
+# 音だけの試験。**一切動かない**（全パート kind: idle）。
+# 目的: サーボ音に埋もれない条件で、ステムが本当にスピーカーから出ているかを見る。
+# 中身は lamban の 100-130 秒（全パートが鳴っている区間）をそのまま切り出したもの。
+song:
+  name: audiotest
+  title: "Audio-only test (no motion)"
+  bpm: 100
+  meter: [4, 4]
+  bars: 12
+  lead_in_s: 0.5
+  tail_s: 0.5
+
+parts:
+  lead:
+    kind: idle
+    instrument: audiotest
+    audio: lead.wav
+  balafon:
+    kind: idle
+    instrument: audiotest
+    audio: balafon.wav
+  kora:
+    kind: idle
+    instrument: audiotest
+    audio: kora.wav
+  ngoni:
+    kind: idle
+    instrument: audiotest
+    audio: ngoni.wav
+  tama:
+    kind: idle
+    instrument: audiotest
+    audio: tama.wav
+  djembe:
+    kind: idle
+    instrument: audiotest
+    audio: djembe.wav
+  dundunba:
+    kind: idle
+    instrument: audiotest
+    audio: dundunba.wav
+  sangban:
+    kind: idle
+    instrument: audiotest
+    audio: sangban.wav
+  karignan:
+    kind: idle
+    instrument: audiotest
+    audio: karignan.wav
+
+cast:
+  lead: r01
+  balafon: r02
+  kora: r03
+  ngoni: r04
+  tama: r05
+  djembe: r06
+  dundunba: r07
+  sangban: r08
+  karignan: r09

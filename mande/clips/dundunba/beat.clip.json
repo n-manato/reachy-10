@@ -1,0 +1,104 @@
+{
+  "name": "dundunba_beat",
+  "version": 1,
+  "instrument": "dundunba",
+  "description": "ドゥンドゥンバ（最大の dunun）をバチで打つ（エアー）。\n\n見分けの要点: **最も遅く、最も低く、最も大きい弧**。両面の大太鼓を横向きに置いてバチで打つ楽器で、上体の重さが見えるほど大きく沈む。耳はほとんど動かさない ―― 動きの主役は胴体。\n\nサンバンと形は同じだが、向きも位相も逆で、周期は倍（8拍対4拍）。2台が向かい合って掛け合っているように見える。\n\n[clip fit] scaled down to stay inside the envelope at 96, 120, 126 BPM: head x0.223. Timing and the shape of the path are unchanged.",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.25
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.09,
+        "pose": {
+          "y": -0.6679,
+          "z": 1.1132,
+          "pitch": -0.7792
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "pose": {
+          "y": 0.6679,
+          "z": -1.3358,
+          "pitch": 0.8905
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.34,
+        "pose": {
+          "y": 0.8905,
+          "z": -1.5585,
+          "pitch": 1.0241
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.72,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": 0.0,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.09,
+        "value": -0.6679,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "value": 0.6679,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.72,
+        "value": 0.0,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "value": [
+          -15.0,
+          15.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.72,
+        "value": [
+          -10.0,
+          10.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

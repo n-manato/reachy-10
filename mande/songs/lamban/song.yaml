@@ -1,0 +1,172 @@
+# Lamban（Djelidon / Djelifoli / Lamba）
+#
+# マニンカ／マリンケの「ジェリ（グリオ）のための曲」。マリ起源で、バラフォン上で
+# Kouyaté 家によって作られたと伝わる。伝統的な編成は balafon・djeli dundun・tama、
+# ギニアとセネガルではそこに djembe と dunun が加わる ―― **旋律楽器と打楽器の
+# 混成が伝承そのもの**である数少ない曲で、だからこの9台編成に無理なく載る。
+#
+# 採譜と出典は tools/make_lamban.py の冒頭にまとめてある。各パターンに
+# [DOC]（出典のある採譜）か [RECON]（出典のある制約を満たす再構成）が付いている。
+#
+# ★ノート番号は音高ではない★
+# 打楽器は打法（60=bass 62=tone 64=slap / 60=開放 61=ミュート 72=鈴）、
+# 旋律楽器は棒・弦の通し番号を指す。音律（バラフォンは等間隔七音、コラは Sauta）は
+# orchestra/audio/mande.py が合成時に焼き込んでいて、12平均律を経由しない。
+#
+# ★bpm を書かないこと★
+# この曲は 96 → 120 BPM の加速構成で、テンポマップは MIDI の set_tempo に入っている。
+# ここに `bpm:` を書くとそれが上書きされて、加速が消える。
+# 上限 120 は安全ゲート由来 ―― 発音する動作の間隔は 110ms 以上が必要で、
+# 16分音符は 120 BPM でちょうど 125ms。ここが天井。
+
+song:
+  name: lamban
+  title: "Lamban (Djelidon)"
+  midi: lamban.mid
+  meter: [4, 4]
+  lead_in_s: 2.5        # T0 はここ。指揮の予備拍と各打点の振りかぶりがこの中に入る
+  tail_s: 0.8           # 終止の余韻
+  bars_per_phrase: 4    # 曲の周期は2小節だが、フレーズの弧は4小節で取る
+
+# 名乗り。指揮者が合図 → その台が自分の音を鳴らす。鳴る音は本編の冒頭から
+# 自動で拾われるので、ここに音は書かない。
+# 参考元より各所を広く取ってある。指揮者は8台に立て続けに合図を出すので、
+# **10秒窓の実効値がここで最大になる**（演奏中でも終幕でもない）。
+# 実測で intro rms 1.86 / piece 1.73 / outro 0.88 だった。角度を削るより
+# 間合いを広げるほうが、合図の読みやすさを損なわずに負荷が下がる。
+intro:
+  lead_s: 1.0
+  greet_s: 4.2
+  slot_s: 3.2
+  cue_s: 1.0
+  gap_s: 0.35
+  settle_s: 3.0
+  order: [balafon, kora, ngoni, tama, djembe, dundunba, sangban, karignan]
+
+# 終幕。**指揮者はここで体ごと180度回って客席にお辞儀する**（台の上で90度回して
+# 置いてあるため）。参考元の 3.5秒 のままだと、この一回の旋回だけで10秒窓の
+# 実効値が上限の 91% に達していた ―― 演奏中ではなく、ここが最大負荷だった。
+# 角度は固定なので、下げられるのは時間だけ。ゆっくり回す。
+outro:
+  ready_s: 1.4
+  bow_s: 5.2
+  hold_s: 1.2
+  rise_s: 2.4
+  stow_s: 3.4
+  rest_s: 1.5
+  conductor_home_yaw_deg: -90.0   # 指揮者は台の上で90度回して置いてある
+  conductor_turn_deg: 180.0
+
+parts:
+  # r01 ―― djembefola（ソロ djembe）。実際のアンサンブルでもソロは伴奏 djembe とは
+  # 別の役で、合図(call)とブレイクで全体を仕切る。指揮の動きは手続き生成。
+  lead:
+    kind: conductor
+    instrument: djembe
+    persona: conductor
+    audio: lead.wav
+    mix_db: -6.0
+
+  # -- 旋律 ---------------------------------------------------------------
+  balafon:
+    kind: midi
+    track: Balafon
+    clip: balafon/strike
+    instrument: balafon
+    voice_preset: balafon
+    audio: balafon.wav
+    gain: 1.0
+    mix_db: 0.0          # この曲の主役。他は全部これより下に置く
+
+  kora:
+    kind: midi
+    track: Kora
+    clip: kora/pluck
+    instrument: kora
+    voice_preset: kora
+    audio: kora.wav
+    gain: 0.95
+    mix_db: -3.0
+
+  ngoni:
+    kind: midi
+    track: Ngoni
+    clip: ngoni/pluck
+    instrument: ngoni
+    voice_preset: ngoni
+    audio: ngoni.wav
+    gain: 0.9
+    mix_db: -7.0
+
+  # -- 太鼓 ---------------------------------------------------------------
+  tama:
+    kind: midi
+    track: Tama
+    clip: tama/strike
+    instrument: tama
+    voice_preset: tama
+    audio: tama.wav
+    gain: 0.9
+    mix_db: -8.0
+
+  djembe:
+    kind: midi
+    track: Djembe
+    clip: djembe/hit
+    instrument: djembe
+    voice_preset: djembe
+    audio: djembe.wav
+    gain: 1.0
+    mix_db: -5.0
+
+  dundunba:
+    kind: midi
+    track: Dundunba
+    clip: dundunba/beat
+    instrument: dundunba
+    voice_preset: dundunba
+    audio: dundunba.wav
+    gain: 1.0
+    mix_db: -5.0
+
+  sangban:
+    kind: midi
+    track: Sangban
+    clip: sangban/beat
+    instrument: sangban
+    voice_preset: sangban
+    audio: sangban.wav
+    gain: 1.0
+    mix_db: -4.0        # 「アンサンブルの心臓」。3+3+2 が聞こえないと曲にならない
+
+  # -- 体鳴 ---------------------------------------------------------------
+  # ループ型クリップ。リズムは MIDI ではなくクリップの anchors（8分）にある。
+  # `zone_cycle` で往(60)と復(61)を交互に鳴らす ―― 擦る楽器は往復で音が違う。
+  karignan:
+    kind: pattern
+    clip: karignan/scrape
+    instrument: karignan
+    voice_preset: karignan
+    zone_cycle: [60, 61]
+    audio: karignan.wav
+    gain: 0.8
+    mix_db: -8.0
+    start_bar: 8         # 刻みが入って周期が固まるところから
+    end_bar: 64          # 終止の figure では抜ける
+
+cast:
+  lead:      r01
+  balafon:   r02
+  kora:      r03
+  ngoni:     r04
+  tama:      r05
+  djembe:    r06
+  dundunba:  r07
+  sangban:   r08
+  karignan:  r09
+
+secondary:
+  groove: true         # 出番が無い間も全機が拍に乗る。これが「合奏している集団」を作る
+  breathing: true
+  phrase_sway: true
+  attention: true      # フレーズの切れ目で指揮者を見る

@@ -1,0 +1,113 @@
+# Fleet registry.
+#
+# Keyed on `hardware_id` -- the only stable identifier. It comes from
+# GET /api/daemon/hardware-id and survives reboots, DHCP leases and hostname
+# changes. `ip` is a CACHE refreshed by `orchestra fleet discover`; never treat
+# it as identity. `mac` is here so you can pin DHCP reservations on the Speedefy
+# router (recommended -- router-side change, touches zero robots).
+#
+# `role` and `instrument` are DEFAULT assignments. A song may override them in
+# its own song.yaml cast block, so a robot can play shaker in one piece and sing
+# in the next.
+#
+# 2026-08-07: 物理楽器を廃止した。楽器音はすべて各機のスピーカーから出るので、
+# `instrument` はもう「取り付けてある物」ではなく「その機体の**既定の役**」を
+# 表すだけになった。1台=1音程という制約も消えたので `pitch` は削除した
+# （各機はステム1本を丸ごと鳴らす）。実際の割り当ては song.yaml の cast が決める。
+#
+# Values below were read live from the fleet on 2026-08-06.
+#
+# 2026-08-28: 西アフリカ・マンデ（マリ／ギニア）の Lamban 編成に差し替えた。
+# r01 が指揮＋ソロ djembe（djembefola）のコール、r02-r09 が8種の別々の楽器。
+# 歌は使わない。楽器名は3つの名前空間（audio のプリセット / motion のペルソナ /
+# ここ）で綴りを一致させること ―― ペルソナは未知名を例外にせず「構えなし」に
+# 落とすので、綴り違いは無言で棒立ちのロボットになる。
+
+robots:
+  - id: r01
+    hardware_id: "84153d674c8451fb"
+    mac: "88:a2:9e:78:f5:e6"
+    ip: 192.168.3.105
+    variant: wireless
+    role: conductor
+
+  - id: r02
+    hardware_id: "fc83e0cbcea9de82"
+    mac: "88:a2:9e:8d:51:c1"
+    ip: 192.168.3.120
+    variant: wireless
+    # 2026-08-07: 当初 `lite` としていたが誤り。調査時点でカメラが未接続
+    # (/dev/video0 が無い唯一の個体) だったためデーモンが lite と申告していた。
+    # カメラ修理後は他機と同じ imx708 / wireless を報告する。
+    role: performer
+    instrument: balafon    # Lamban の発祥楽器。主旋律オスティナート
+
+  - id: r03
+    hardware_id: "0ab86ea6a56fa84d"
+    mac: "88:a2:9e:8d:31:bd"
+    ip: 192.168.3.123
+    variant: wireless
+    role: performer
+    instrument: kora    # 21弦ハープリュート。kumbengo + birimintingo
+
+  - id: r04
+    hardware_id: "5c953581aa0e2dc4"
+    mac: "88:a2:9e:79:19:0c"
+    ip: 192.168.3.133
+    variant: wireless
+    role: performer
+    instrument: ngoni    # 皮張りリュート。低音リフ
+    # NOTE: this unit was in daemon state `error` (motor backend down, 8443
+    # closed) during the survey. `orchestra fleet recover --robot r04` restarts
+    # its daemon over SSH. Do not include it in a show until status is `running`.
+
+  - id: r05
+    hardware_id: "7b5767e8aaea1c0c"
+    mac: "88:a2:9e:8d:9b:1c"
+    ip: 192.168.3.136
+    variant: wireless
+    role: performer
+    instrument: tama    # トーキングドラム。音程ベンドの応答
+
+  - id: r06
+    hardware_id: "746261908adbbd8b"
+    mac: "88:a2:9e:78:f4:cb"
+    ip: 192.168.3.141
+    variant: wireless
+    role: performer
+    instrument: djembe    # 伴奏形（bass / tone / slap）
+
+  - id: r07
+    hardware_id: "d0c2ac604281abd7"
+    mac: "88:a2:9e:8d:25:78"
+    ip: 192.168.3.155
+    variant: wireless
+    role: performer
+    instrument: dundunba    # 最大の dunun + kenken 鈴。最低音の対リズム
+
+  - id: r08
+    hardware_id: "d1585cfa8ac671df"
+    mac: "88:a2:9e:78:f4:7c"
+    ip: 192.168.3.156
+    variant: wireless
+    role: performer
+    instrument: sangban    # 中の dunun + kenken 鈴。アンサンブルの心臓
+
+  - id: r09
+    hardware_id: "3757a4a9a069ce1f"
+    mac: "88:a2:9e:e6:7e:db"
+    ip: 192.168.3.174
+    variant: wireless
+    role: performer
+    instrument: karignan    # 金属スクレーパー。細分の刻み
+
+# Adding a 10th robot is exactly this: append an entry, then give it a part in
+# the song's cast. No code changes anywhere.
+#
+#  - id: r10
+#    hardware_id: "..."
+#    mac: "..."
+#    ip: 192.168.3.xxx
+#    variant: wireless
+#    role: performer
+#    instrument: karignan
