@@ -1,0 +1,34 @@
+{
+  "name": "shaker_shake",
+  "version": 1,
+  "instrument": "shaker",
+  "description": "シェイカーを振る（エアー）。\n\n見分けの要点: **左右(y)にひたすら往復し、打点が無い**。振ることそのものが発音なので、動きが止まる瞬間が存在しない。タンバリンが roll で傾くのに対し、こちらは平行移動。歌い手も打点が無いが、あちらは頭を上げて静かに支えるので取り違えない。\n\n8分で往復。連続動作なので振幅は控えめにして、持続的な関節速度を抑えている。",
+  "units": { "translation": "mm", "rotation": "deg" },
+  "placement": "pattern",
+  "loop_beats": 1.0,
+  "anchors": [0.0, 0.25, 0.5, 0.75],
+  "tracks": {
+    "head": [
+      { "beat": 0.0,   "pose": { "y": 0,    "roll": 0,    "z": 0 },    "interp": "minjerk" },
+      { "beat": 0.125, "pose": { "y": 5,    "roll": 3,    "z": -1 },   "interp": "minjerk" },
+      { "beat": 0.25,  "pose": { "y": 0,    "roll": 0,    "z": 0 },    "interp": "minjerk" },
+      { "beat": 0.375, "pose": { "y": -5,   "roll": -3,   "z": -1 },   "interp": "minjerk" },
+      { "beat": 0.5,   "pose": { "y": 0,    "roll": 0,    "z": 0 },    "interp": "minjerk" },
+      { "beat": 0.625, "pose": { "y": 5,    "roll": 3,    "z": -1 },   "interp": "minjerk" },
+      { "beat": 0.75,  "pose": { "y": 0,    "roll": 0,    "z": 0 },    "interp": "minjerk" },
+      { "beat": 0.875, "pose": { "y": -5,   "roll": -3,   "z": -1 },   "interp": "minjerk" },
+      { "beat": 1.0,   "pose": { "y": 0,    "roll": 0,    "z": 0 },    "interp": "minjerk" }
+    ],
+    "body_yaw": [
+      { "beat": 0.0,  "value": 0,    "interp": "minjerk" },
+      { "beat": 0.25, "value": 2.5,  "interp": "minjerk" },
+      { "beat": 0.75, "value": -2.5, "interp": "minjerk" },
+      { "beat": 1.0,  "value": 0,    "interp": "minjerk" }
+    ],
+    "antennas": [
+      { "beat": 0.0, "value": 14, "interp": "minjerk" },
+      { "beat": 0.5, "value": 20, "interp": "minjerk" },
+      { "beat": 1.0, "value": 14, "interp": "minjerk" }
+    ]
+  }
+}

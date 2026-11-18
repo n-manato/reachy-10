@@ -1,0 +1,32 @@
+{
+  "name": "voice_harmony",
+  "version": 1,
+  "instrument": "voice",
+  "description": "ハモリを唄う。\n\n主旋律と同じ「唄う形」だが、意図的に**控えめで、わずかに遅い**。ハモリは主旋律を支える役なので、動きも半歩下がって見えるほうが正しい。振幅は lead のおよそ7割、体の向きも逆側へ振る。\n\n2台を並べたとき、同じ動きを同じ大きさでやると双子に見えて役割が伝わらない。大きさと向きで主従を出す。",
+  "units": { "translation": "mm", "rotation": "deg" },
+  "placement": "trigger",
+  "anchors": [0.35],
+  "loop_beats": 2.0,
+  "tracks": {
+    "head": [
+      { "beat": 0.0,  "pose": { "z": 0,   "pitch": 0,  "x": 0 },  "interp": "minjerk" },
+      { "beat": 0.22, "pose": { "z": 1.5, "pitch": -3, "x": -1 }, "interp": "minjerk" },
+      { "beat": 0.38, "pose": { "z": 3.5, "pitch": -5, "x": 1 },  "interp": "minjerk" },
+      { "beat": 1.15, "pose": { "z": 3,   "pitch": -4, "x": 1 },  "interp": "minjerk" },
+      { "beat": 1.75, "pose": { "z": 1,   "pitch": -1, "x": 0 },  "interp": "minjerk" },
+      { "beat": 2.00, "pose": { "z": 0,   "pitch": 0,  "x": 0 },  "interp": "minjerk" }
+    ],
+    "body_yaw": [
+      { "beat": 0.0,  "value": 0,    "interp": "minjerk" },
+      { "beat": 0.38, "value": -2.5, "interp": "minjerk" },
+      { "beat": 1.45, "value": 1.5,  "interp": "minjerk" },
+      { "beat": 2.00, "value": 0,    "interp": "minjerk" }
+    ],
+    "antennas": [
+      { "beat": 0.0,  "value": 12, "interp": "minjerk" },
+      { "beat": 0.38, "value": 24, "interp": "minjerk" },
+      { "beat": 1.45, "value": 21, "interp": "minjerk" },
+      { "beat": 2.00, "value": 12, "interp": "minjerk" }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+# systemd *user* unit: the browser console, resident.
+#
+# FLEET MODE, AND WHY THAT IS SAFE TO LEAVE RUNNING.
+# This serves a page and nothing else until someone presses play. The first
+# thing that speaks to the nine agents is `FleetBackend.open()`, reached only
+# from `ShowRunner._takes()`, which only runs once the play event is set
+# (orchestra/web/runner.py). So starting the service, restarting it, and
+# rebooting the machine never move a robot. Stopping it does the opposite of
+# moving them: aiohttp's `run_app` handles SIGTERM and SIGINT alike and runs
+# `on_cleanup` either way, which is where `runner.close()` parks them.
+#
+# Install with deploy/install_service.sh.
+#   logs:    journalctl --user -u orchestra-web -f
+#   control: systemctl --user {status|restart|stop} orchestra-web
+
+[Unit]
+Description=Reachy Mini Orchestra web console (small_world, fleet)
+Documentation=file:%h/Documents/DEV/Reachy_10/README.md
+Wants=network-online.target
+After=network-online.target
+# A missing or failing build makes the CLI exit non-zero. Give up after five
+# tries in five minutes and sit in `failed`, where it can be seen, rather
+# than restarting for ever.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Documents/DEV/Reachy_10
+Environment=PYTHONUNBUFFERED=1
+# `project_root()` reads this; without it the root is inferred from where the
+# package happens to be installed, which is true today and brittle tomorrow.
+Environment=ORCHESTRA_ROOT=%h/Documents/DEV/Reachy_10
+
+# ALL INTERFACES, NOT LOOPBACK -- read this before narrowing it back.
+# The tunnel could not reach 127.0.0.1:8080, while the sibling exhibit on
+# 0.0.0.0:8010 was reachable, so whatever fronts these ports does not share
+# this machine's loopback. Matching 8010 is what makes the tunnel work.
+#
+# The cost is real and is not fixed anywhere else in this repo: there is no
+# authentication on this port, so anyone who can route to this host on 8080
+# can start nine robots moving. Access control therefore has to come from
+# outside the process -- Cloudflare Access on the public URL, and a firewall
+# rule if the LAN itself should not have it.
+ExecStart=%h/Documents/DEV/Reachy_10/.venv/bin/orchestra web small_world --host 0.0.0.0 --port 8080
+
+# Measured: a console that has opened the fleet releases the port at once but
+# takes 30-60 s to exit, because `runner.close()` joins the worker and then
+# `show.teardown()` talks to all nine. Two minutes so systemd never reaches
+# for SIGKILL in the middle of parking them.
+TimeoutStopSec=120
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

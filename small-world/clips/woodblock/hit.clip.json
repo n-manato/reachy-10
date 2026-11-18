@@ -1,0 +1,99 @@
+{
+  "name": "woodblock_hit",
+  "version": 1,
+  "instrument": "woodblock",
+  "description": "ウッドブロックを叩く（エアー）。\n\n見分けの要点: **一発が鋭く、その後ぴたりと止まる**。連続では鳴らさずアクセントだけを担当するので、動きも「構えて、打って、静止」という単発の形。マレット系（グロッケン/マリンバ）が滑らかに流れ続けるのと対照的。\n\ncartoon 補間は**遅い区間にだけ**使う。cartoon は端点を越えて外挿するぶん中央の傾きが線形の約3.6倍になり、速い打ち下ろしに使うと関節速度が跳ね上がる（実際に一度 24.5 rad/s まで出した）。ここでは振りかぶりとアンテナにだけ使い、打ち下ろしは linear にしてある。\n\n[clip fit] 112, 132 BPM で 安全域に収めるため振幅を head x0.536 に縮めた。タイミングと軌道の形は変えていない。",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.26
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {
+          "z": 0.5361,
+          "roll": -0.8041,
+          "pitch": -1.6082
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.06,
+        "pose": {
+          "z": 2.1443,
+          "roll": -1.0722,
+          "pitch": -3.2165
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.26,
+        "pose": {
+          "z": -2.1443,
+          "roll": 0.8041,
+          "pitch": 3.2165
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.36,
+        "pose": {
+          "z": -2.6804,
+          "roll": 0.8041,
+          "pitch": 3.7526
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.58,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 1.0,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -11.0,
+          11.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.26,
+        "value": [
+          -28.0,
+          28.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.62,
+        "value": [
+          -11.0,
+          11.0
+        ],
+        "interp": "cartoon"
+      },
+      {
+        "beat": 1.0,
+        "value": [
+          -11.0,
+          11.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

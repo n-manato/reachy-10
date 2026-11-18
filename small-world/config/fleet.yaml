@@ -1,0 +1,226 @@
+# Fleet-wide network, deployment and SAFETY configuration.
+#
+# Every number in the `safety` block is derived from the actual Reachy Mini SDK /
+# URDF, not guessed. Sources are cited per line. The stack itself enforces NONE
+# of these -- an unreachable or too-fast pose is caught, throttle-logged and
+# ignored by the daemon (daemon/backend/robot/backend.py:240-243), producing a
+# silent freeze rather than an error. So these limits are enforced by
+# orchestra/motion/validate.py at COMPILE time, on the PC, before anything is
+# ever sent to a robot.
+
+network:
+  ssid: Speedefy_5G
+  subnet: 192.168.3.0/24
+  daemon_port: 8000          # FastAPI + ws://<ip>:8000/ws/sdk
+  agent_port: 8770           # our on-robot agent's control channel
+
+ssh:
+  user: pollen
+  # Password auth is the factory default (pollen/root). Strongly prefer a key:
+  #   ssh-keygen -t ed25519 -f ~/.ssh/reachy_orchestra -N ""
+  #   orchestra fleet provision      # installs the pubkey on all robots
+  key: ~/.ssh/reachy_orchestra
+  connect_timeout: 10
+
+agent:
+  # Where the agent and its payload live on each robot.
+  remote_dir: /home/pollen/orchestra
+  # Interpreter used to run the agent. Must be the robot's own venv so the agent
+  # uses the robot-native SDK (removes any PC-side version mismatch).
+  # Verified/overridden per robot by `orchestra fleet provision`.
+  python: /venvs/mini_daemon/bin/python
+  # Playback rate of the agent's local control loop. The daemon consumes at a
+  # hard 50 Hz (daemon/backend/robot/backend.py:71), so 100 is 2x oversampled.
+  # Experiment N-10 decides whether 50 is visually identical.
+  fps: 100.0
+  # Graceful-abort ramp back to neutral.
+  abort_ramp_s: 0.5
+  # The console's stop button: the music fades and the head goes down to the
+  # closing pose over this long. The music stays at full level for the first
+  # 1.8 s or so, because what is already queued cannot be changed.
+  fade_out_s: 5.0
+  # If the PC control link is lost mid-show for longer than this, the agent
+  # finishes its current phrase then parks at neutral. It never stops mid-strike.
+  deadman_timeout_s: 5.0
+
+clock_sync:
+  probes: 60             # Cristian's algorithm samples per sync round
+  keep_best: 8           # average the N lowest-RTT samples (least queue asymmetry)
+  probe_interval_s: 0.02
+  resync_interval_s: 10.0
+  # Reject a sync round whose best RTT exceeds this -- the link is too congested
+  # to trust the offset estimate.
+  max_acceptable_rtt_ms: 60.0
+
+show:
+  # How far in the future T0 is scheduled. Must comfortably exceed worst-case
+  # START message delivery; the measured Wi-Fi power-save wake spike is 17-90 ms,
+  # so 1.5 s is ~16x margin. It also has to clear the 286 ms audio latency. The
+  # robots stand still for all of it, so more margin is not free.
+  start_lead_s: 1.5
+  heartbeat_interval_s: 1.0    # also keeps Wi-Fi out of power-save
+
+safety:
+  # ---- Workspace limits -------------------------------------------------
+  # Hard limits from the SDK, then our operating margin (what validate.py uses).
+  head_tilt_cone_deg:
+    hard: 35.0        # placo_kinematics.py:96-126, "hard" cone constraint
+    limit: 25.0       # our margin
+  head_rel_yaw_deg:
+    hard: 55.0        # placo says 55, analytical says 65 -- use the lower
+    limit: 45.0
+  body_yaw_deg:
+    hard: 160.0       # urdf yaw_body +/-2.79253 rad; also max_body_yaw clamp
+    limit: 150.0
+  antenna_deg:
+    hard: 180.0       # urdf right_antenna/left_antenna +/-pi
+    limit: 150.0
+
+  # Head translation operating box, metres. The SDK declares no translation
+  # limit at all -- IK simply returns NaN outside the reachable set.
+  #
+  # ★z は実測で置き換えた（2026-08-08）★ 元の ±0.022 は当てずっぽうで、
+  # **上下とも間違っていた**。IK を通して各ステュワート関節の余裕を測った:
+  #
+  #     z = +21mm   stewart_2 の余裕 +0.32°
+  #     z = +22mm   stewart_2 の余裕 -2.92°   ← 設定上限そのものが関節を割る
+  #     z = +25mm   IK 失敗
+  #     z = -44mm   stewart_4 の余裕 +12.80°  ← SDK のスリープ姿勢はここ
+  #     z = -46mm   stewart_4 の余裕  +8.04°
+  #     z = -50mm   stewart_4 の余裕  -3.49°
+  #
+  # つまり **上は狭すぎるどころか広すぎ**（箱を通っても関節検査が落ちる自己矛盾。
+  # 誰も +22mm まで使っていなかったので露見していなかった）、**下は倍の余地が
+  # あった**。上を締めて下を開ける。これで SDK のスリープ姿勢（z -44mm）が
+  # 演奏プログラムの中で扱えるようになる ―― エンディングで顔をしまうのに要る。
+  head_translation_m:
+    x: [-0.025, 0.025]
+    y: [-0.025, 0.025]
+    z: [-0.046, 0.021]
+
+  # ---- Per-joint limits (radians) ---------------------------------------
+  # descriptions/reachy_mini/urdf/robot.urdf. Asymmetric per branch -- do not
+  # collapse these into one symmetric range.
+  joint_limits_rad:
+    body_yaw:     [-2.79253,  2.79253]
+    stewart_1:    [-0.837758, 1.39626]
+    stewart_2:    [-1.39626,  1.22173]
+    stewart_3:    [-0.837758, 1.39626]
+    stewart_4:    [-1.39626,  0.837758]
+    stewart_5:    [-1.22173,  1.39626]
+    stewart_6:    [-1.39626,  0.837758]
+  # Shrink each joint range by this fraction at both ends before checking.
+  joint_limit_inset: 0.05
+
+  # ---- Dynamics ---------------------------------------------------------
+  # urdf/config.json declares max_velocity 8 rad/s. It is METADATA ONLY --
+  # nothing in the Python stack enforces it. We enforce a fraction of it.
+  joint_velocity_max_rad_s: 8.0
+  joint_velocity_frac: 0.5          # -> 4.0 rad/s sustained ceiling
+
+  # Acceleration is modelled as physics, not a made-up number. The MJCF gives
+  # the sts3215 servo forcerange +/-3.23 N.m and armature 0.027, so its maximum
+  # producible acceleration is roughly 3.23/0.027 ~= 120 rad/s^2. Commanding
+  # beyond that is not instant damage -- the servo simply lags and draws peak
+  # current -- so it is a WARNING. `abort` is where it becomes an error.
+  joint_accel_max_rad_s2: 120.0
+  joint_accel_abort_rad_s2: 600.0
+
+  # 物理楽器を廃止したので「打鍵の衝撃」という免除の根拠が消えた。
+  # ビーターも接触相手も存在しない以上、速度上限を一時的に上げる理由がない。
+  # 免除を消したぶん 4.0 rad/s が全区間で効く唯一の速度ゲートになる。
+  #
+  # ただし「音が鳴る瞬間」の周りだけは加速度を少し緩める。エアー演奏では
+  # overshoot（cartoon 補間）が表現として欲しく、そこが最も加速度が立つため。
+  gesture_window_s: 0.10
+  gesture_accel_scale: 1.8          # 音の瞬間だけ 120 -> 216 rad/s^2 まで許容
+  # Antennas are xc330-class (+/-0.8 N.m), a quarter of the sts3215 Stewart
+  # servos. Keep them slower and keep mounted mass tiny.
+  antenna_velocity_max_rad_s: 12.0
+
+  # ---- ジェスチャ保護 -----------------------------------------------------
+  # 押し付ける対象が無くなったので dwell（停止し続けてストールする）検査は削除。
+  # 残すのは「クリップの重なり」対策。寄与は加算されるので、前の音符の動きが
+  # 終わる前に次が始まると振幅が合算され、並進ボックスを超える。
+  gesture_min_interval_s: 0.11
+  # cartoon は端点を越えて外挿する（utils/interpolation.py:115）。物理楽器が
+  # 有った頃はビーターが楽器を突き抜けるので禁止だったが、エアー演奏では
+  # むしろ欲しい誇張なので禁止しない。並進ボックスと速度で守られている。
+  forbid_cartoon_near_anchor_s: 0.0
+
+  # ---- デューティ比（モーター保護）---------------------------------------
+  # ★ 物理楽器を外しても**サーボの負荷は変わらない**。同じ振幅・同じ頻度で
+  #   同じステュワート機構を動かすので、発熱は打鍵していた頃と同じ。
+  #   このファームは温度・電流・負荷を一切報告しない（実測確認済み）ため、
+  #   これが唯一の構造的な発熱保護であり、**contact ではなく anchors 基準**で
+  #   評価しないと無言で無効化される。
+  # 実測（daemon 1.9.0）: GET /api/motors/status は {"mode": "..."} しか返さず、
+  # 温度・電流・負荷はAPIのどこにも無い。実行時の監視は不可能。
+  #
+  # 指標は**関節速度の実効値(RMS)**。当初は「アンカー数/秒」で測っていたが、
+  # あれは打鍵という離散的な衝撃を想定した数え方で、シェイカーのように
+  # 小さく連続的に動く動作では発熱の実態を表さない（連続で動く方が
+  # 打点は少なくても総仕事量は多い）。モーターが発熱するのは動いた量に
+  # よるので、速度の実効値で測るのが物理的に正しい。
+  #
+  # ★この数値には実測の裏付けが無い。★
+  # URDF が宣言するピーク 8 rad/s の約30%を連続駆動の目安として置いただけで、
+  # 「何 rad/s で何分回すと熱くなるか」は測っていない。このファームは温度も
+  # 電流も報告しないので、測るには長時間走らせて実際に触るしかない
+  # （docs/EXPERIMENTS.md N-8）。
+  #
+  # 現行クリップの実測値（参考、112 BPM）:
+  #   歌 0.65-0.97 / 鈴 0.65 / シェイカー 1.54 / マレット 1.62 / タンバリン 1.98
+  # 24秒の曲ではどれも問題になっていないが、10分の曲なら話が変わる可能性がある。
+  # 長い曲を組むときは、まず実機で3分連続させて手で確かめること。
+  gesture_duty_window_s: 10.0
+  gesture_duty_max_rms: 2.5          # ヘッド: sts3215 6本 + body_yaw
+
+  # アンテナは**別枠で**見る。混ぜて1つの数にすると意味が読めなくなるうえ、
+  # もっと悪いことに、アンテナ主体のパート（鈴）はヘッドがほぼ静止するので
+  # ヘッドだけ見ていると**最も弱いモーターを最も酷使するパートが、保護対象から
+  # 丸ごと外れる**。実際そうなっていた（2026-08-07 に発見・修正）。
+  #
+  # 上限の根拠 ―― これは温度実測ではなく、**ベンダ自身が連続稼働させている量**を
+  # 基準にしている。この repo の secondary_motion.breathing は SDK 由来の
+  # 0.26 rad @ 0.5 Hz で、これが「ずっと動かしていい」と作り手が判断した唯一の
+  # アンテナ動作。その実効値は 0.26 * 2pi * 0.5 / sqrt(2) * sqrt(2本) = 0.82 rad/s。
+  # 3.0 はその約3.7倍まで許す設定で、演出としてアンテナを主役にできる幅を残しつつ、
+  # ピーク上限 12 rad/s の半分近くを延々と出し続ける状態は拒否する。
+  #
+  # 実測（build/small_world、112 BPM、10秒窓の最悪値）:
+  #   r01 0.23 / r08 0.49 / r03 0.83 / r07 1.49 / r02 1.54 / r06 1.79
+  #   r05 1.83 / r04 2.19 / r09 3.64 <- 鈴。これだけ突出するので締める対象
+  antenna_duty_max_rms: 3.0
+
+  # Kept for a firmware that ever starts reporting temperature; the health
+  # module lights these up automatically if the fields appear.
+  motor_temp_warn_c: 55
+  motor_temp_abort_c: 65
+  thermal_poll_interval_s: 5.0
+
+  # Health thresholds read from /api/daemon/status.backend_status, which IS
+  # available and IS meaningful: the control loop runs at a nominal 50 Hz.
+  min_control_loop_hz: 45.0
+
+secondary_motion:
+  # Instrument accuracy outranks expression: secondary motion is gain-scheduled
+  # to ZERO inside this window around every strike anchor.
+  anchor_mute_window_s: 0.08
+  anchor_mute_ramp_s: 0.12
+  phrase_sway:
+    yaw_deg: 1.5
+    lean_mm: 3.0
+  breathing:
+    # Values proven in the ethics-podcast project (robot_worker.py:64-94).
+    z_amp_m: 0.005
+    freq_hz: 0.1
+    antenna_amp_rad: 0.26
+    antenna_freq_hz: 0.5
+    idle_delay_s: 0.3
+
+poses:
+  # Neutral == SDK INIT pose. np.eye(4) is the neutral head, NOT the mechanism
+  # origin (IK applies head_z_offset=0.177 internally).
+  neutral_antennas_rad: [-0.1745, 0.1745]   # reachy_mini.py:47, ~10deg offset
+                                            # reduces shake at vertical
