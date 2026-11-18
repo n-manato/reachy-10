@@ -1,0 +1,113 @@
+{
+  "name": "tambourine_ride",
+  "version": 1,
+  "instrument": "tambourine",
+  "description": "タンバリンを鳴らす（エアー）。\n\n見分けの要点: **roll（左右の傾き）が主役**。他の楽器はどれも上下（z）や前後（pitch）が主だが、タンバリンだけは面を傾けて振る動きなので、首をかしげるような roll が支配的になる。これが一番はっきりした識別子。\n\nループ型。拍の頭で打点、裏で振り戻し。連続して鳴らし続ける役なので、止まっている時間が無い。\n\n[clip fit] 112, 132 BPM で 安全域に収めるため振幅を head x0.629 に縮めた。タイミングと軌道の形は変えていない。",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "pattern",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.0,
+    0.5
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.14,
+        "pose": {
+          "z": -1.2589,
+          "roll": 6.9238,
+          "pitch": 2.5177
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.34,
+        "pose": {
+          "z": 0.6294,
+          "roll": -4.406,
+          "pitch": 0.6294
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.64,
+        "pose": {
+          "z": -1.2589,
+          "roll": -6.2943,
+          "pitch": 2.5177
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.84,
+        "pose": {
+          "z": 0.6294,
+          "roll": 3.7766,
+          "pitch": 0.6294
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 1.0,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -14.0,
+          14.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.25,
+        "value": [
+          -24.0,
+          24.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "value": [
+          -14.0,
+          14.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.75,
+        "value": [
+          -22.0,
+          22.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 1.0,
+        "value": [
+          -14.0,
+          14.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

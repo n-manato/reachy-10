@@ -1,0 +1,96 @@
+{
+  "name": "marimba_strike",
+  "version": 1,
+  "instrument": "marimba",
+  "description": "マリンバを叩く（エアー）。\n\n見分けの要点: **大きく、低く、左右に動く**。木の大きな音板を柔らかいマレットで叩く動きなので、グロッケンより軌道が広く、沈み込みが深く、音板を移動する横の動きが入る。同じ「叩く」でも質が違うのが遠目にも分かる。\n\n横移動(y)と体の向き(body_yaw)が入るのがグロッケンとの決定的な差。マレットが低音側へ渡っていくように見せる。\n\n振り幅が大きいぶん時間も長く取る（0.30拍）。速度は振幅÷時間で効くので、大きい動きほど急がせてはいけない。\n\n[clip fit] 112, 132 BPM で 安全域に収めるため振幅を head x0.532 に縮めた。タイミングと軌道の形は変えていない。\n\n[song fit] 曲 'small_world' の文脈（音符ごとの重なり＋副次モーション込み）で安全域に収めるため、振幅を x0.826 に縮めた。",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "trigger",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.2
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {
+          "y": -1.3212,
+          "z": 1.6515,
+          "pitch": -2.3121
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "pose": {
+          "y": 1.3212,
+          "z": -2.3121,
+          "pitch": 2.8075
+        },
+        "interp": "linear"
+      },
+      {
+        "beat": 0.28,
+        "pose": {
+          "y": 1.8166,
+          "z": -2.8075,
+          "pitch": 3.303
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "pose": {
+          "y": -1.3212
+        },
+        "interp": "minjerk"
+      }
+    ],
+    "body_yaw": [
+      {
+        "beat": 0.0,
+        "value": -1.4863,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "value": 1.4863,
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "value": -1.4863,
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -12.0,
+          12.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.2,
+        "value": [
+          -22.0,
+          22.0
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "value": [
+          -12.0,
+          12.0
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

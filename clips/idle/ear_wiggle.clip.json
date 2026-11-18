@@ -1,0 +1,24 @@
+{
+  "name": "ear_wiggle",
+  "version": 1,
+  "instrument": "expression",
+  "description": "耳（アンテナ）だけの表情モーション。楽器ではなく、待機中や合図に使う表現用。\n\n形: 両耳をピンと立てる → 左右交互にパタパタ → ゆっくり戻る。頭は動かさない。\n\nアンテナは xc330 クラスで ±0.8 N.m しかなく、ステュワート系サーボの約1/4の力しか出ない。このロボットで最も壊しやすいモータなので、振幅は控えめ（最大45度）に抑え、速度上限も検証器側で頭より厳しくしてある。鈴などを付ける場合は数グラムに留めること。",
+  "units": { "translation": "mm", "rotation": "deg" },
+  "placement": "trigger",
+  "loop_beats": 4.0,
+  "tracks": {
+    "antennas": [
+      { "beat": 0.0,  "value": [-10, 10],  "interp": "minjerk" },
+      { "beat": 0.45, "value": [-45, 45],  "interp": "minjerk" },
+      { "beat": 0.9,  "value": [-30, 30],  "interp": "minjerk" },
+
+      { "beat": 1.3,  "value": [-42, 18],  "interp": "minjerk" },
+      { "beat": 1.7,  "value": [-18, 42],  "interp": "minjerk" },
+      { "beat": 2.1,  "value": [-42, 18],  "interp": "minjerk" },
+      { "beat": 2.5,  "value": [-18, 42],  "interp": "minjerk" },
+      { "beat": 2.9,  "value": [-35, 35],  "interp": "minjerk" },
+
+      { "beat": 4.0,  "value": [-10, 10],  "interp": "minjerk" }
+    ]
+  }
+}

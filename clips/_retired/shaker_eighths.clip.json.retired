@@ -1,0 +1,28 @@
+{
+  "name": "shaker_eighths",
+  "version": 1,
+  "instrument": "shaker",
+  "description": "Eighth-note shake -- twice the rate of shaker_groove at half the amplitude. Halving the travel is not cosmetic: joint velocity scales with amplitude divided by time, so doubling the rate at the same amplitude would double peak velocity and blow the 4 rad/s ceiling. Check this clip with `orchestra clip check` at the tempo you actually intend to play it.",
+  "units": { "translation": "mm", "rotation": "deg" },
+  "placement": "pattern",
+  "loop_beats": 1.0,
+  "anchors": [0.0, 0.25, 0.5, 0.75],
+  "tracks": {
+    "head": [
+      { "beat": 0.0,   "pose": { "y": 0,    "roll": 0 },    "interp": "minjerk" },
+      { "beat": 0.125, "pose": { "y": 3.5,  "roll": 2 },    "interp": "minjerk" },
+      { "beat": 0.25,  "pose": { "y": 0,    "roll": 0 },    "interp": "minjerk" },
+      { "beat": 0.375, "pose": { "y": -3.5, "roll": -2 },   "interp": "minjerk" },
+      { "beat": 0.5,   "pose": { "y": 0,    "roll": 0 },    "interp": "minjerk" },
+      { "beat": 0.625, "pose": { "y": 3.5,  "roll": 2 },    "interp": "minjerk" },
+      { "beat": 0.75,  "pose": { "y": 0,    "roll": 0 },    "interp": "minjerk" },
+      { "beat": 0.875, "pose": { "y": -3.5, "roll": -2 },   "interp": "minjerk" },
+      { "beat": 1.0,   "pose": { "y": 0,    "roll": 0 },    "interp": "minjerk" }
+    ],
+    "antennas": [
+      { "beat": 0.0, "value": 14, "interp": "minjerk" },
+      { "beat": 0.5, "value": 19, "interp": "minjerk" },
+      { "beat": 1.0, "value": 14, "interp": "minjerk" }
+    ]
+  }
+}

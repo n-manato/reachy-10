@@ -1,0 +1,24 @@
+{
+  "name": "woodblock_strike",
+  "version": 1,
+  "instrument": "woodblock",
+  "description": "Struck wood block. A compliant beater on the head front; the block sits on a fixed stand in front of the robot.\n\nSHAPE, and why it is shaped this way:\n  0.00  lift/anticipation  -- the windup, which happens BEFORE the beat\n  0.30  CONTACT (anchor)   -- the trajectory MINIMUM is the contact point\n  0.42  rebound            -- retract begins immediately, never dwell\n  0.80  recover to neutral\n\nThe anchor at 0.30 is what the compiler aligns to the note, so the clip is\nplaced at (note_beat - 0.30) and the windup precedes the beat exactly as a\nplayer's does.\n\nSAFETY: a position-controlled servo held against a hard stop draws sustained\ncurrent and heats, and this firmware reports NO motor temperature at all, so\nthere is no watchdog to catch it. Hence: contact is a single instant, the\nretract is immediate, and the beater must be physically compliant (silicone or\nfoam tip on a slightly springy shaft) to absorb overshoot. Never use 'cartoon'\ninterpolation near the anchor -- it extrapolates past its endpoints and would\ndrive the beater through the block.\n\nStrike depth is per-robot: run `orchestra calibrate strike --robot rXX`.",
+  "units": { "translation": "mm", "rotation": "deg" },
+  "placement": "trigger",
+  "anchors": [0.3],
+  "loop_beats": 1.0,
+  "tracks": {
+    "head": [
+      { "beat": 0.0,  "pose": { "z": 0,    "pitch": -5 },   "interp": "minjerk" },
+      { "beat": 0.14, "pose": { "z": 3,    "pitch": -7 },   "interp": "linear"  },
+      { "beat": 0.30, "pose": { "z": -7.5, "pitch": 10 },   "interp": "linear"  },
+      { "beat": 0.42, "pose": { "z": -1,   "pitch": 3 },    "interp": "minjerk" },
+      { "beat": 0.80, "pose": { "z": 0,    "pitch": 0 },    "interp": "minjerk" }
+    ],
+    "antennas": [
+      { "beat": 0.0,  "value": 12, "interp": "minjerk" },
+      { "beat": 0.30, "value": 26, "interp": "minjerk" },
+      { "beat": 0.80, "value": 12, "interp": "minjerk" }
+    ]
+  }
+}

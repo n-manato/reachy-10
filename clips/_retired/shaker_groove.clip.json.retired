@@ -1,0 +1,24 @@
+{
+  "name": "shaker_groove",
+  "version": 1,
+  "instrument": "shaker",
+  "description": "Quarter-note lateral shake. Contactless: the shaker is mounted on the head crown and the sound comes purely from the robot moving itself, so there is no external object to hit and nothing to calibrate. Shakers respond to ACCELERATION rather than displacement, which is why a mere 8 mm of travel is plenty -- the Stewart platform's translation range is small but its acceleration is excellent.",
+  "units": { "translation": "mm", "rotation": "deg" },
+  "placement": "pattern",
+  "loop_beats": 1.0,
+  "anchors": [0.0, 0.5],
+  "tracks": {
+    "head": [
+      { "beat": 0.0,  "pose": { "y": 0,  "roll": 0 },  "interp": "minjerk" },
+      { "beat": 0.25, "pose": { "y": 7,  "roll": 4 },  "interp": "minjerk" },
+      { "beat": 0.5,  "pose": { "y": 0,  "roll": 0 },  "interp": "minjerk" },
+      { "beat": 0.75, "pose": { "y": -7, "roll": -4 }, "interp": "minjerk" },
+      { "beat": 1.0,  "pose": { "y": 0,  "roll": 0 },  "interp": "minjerk" }
+    ],
+    "antennas": [
+      { "beat": 0.0, "value": 12, "interp": "minjerk" },
+      { "beat": 0.5, "value": 20, "interp": "minjerk" },
+      { "beat": 1.0, "value": 12, "interp": "minjerk" }
+    ]
+  }
+}

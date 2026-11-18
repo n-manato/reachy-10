@@ -1,0 +1,29 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+*.egg-info/
+.pytest_cache/
+config/calibration/*.local.yaml
+songs/*/audio/*.wav
+!songs/*/audio/.gitkeep
+songs/*/preview*.wav
+logs/
+*.log
+
+# gm.dls から抽出したサンプル（Microsoft/Roland 著作物。再配布しない）
+samples/generated/
+
+# 音声合成に喋らせた歌詞のキャッシュ（Microsoft のニューラル音声。同じ理由で
+# 再配布しない）。`python tools/make_voice_bank.py` でいつでも作り直せる。
+samples/voice/
+
+# 参照音声（他者の著作物。測定にのみ使い、出力には入らない）。
+# 由来とライセンスは samples/reference/NOTICE.md に書いてある。
+samples/reference/*
+!samples/reference/NOTICE.md
+
+# 歌声合成のモデル。ボイスバンクは CC BY-NC-ND + Commons Clause、ボコーダは
+# CC BY-NC-SA ―― どちらも**再配布が禁止**されている。取得スクリプトだけを
+# リポジトリに置く（gm.dls と同じ扱い）。
+models/

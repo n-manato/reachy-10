@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Reachy Mini Orchestra</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='17' r='9' fill='%23ffd79a'/%3E%3Crect x='12' y='4' width='8' height='5' rx='2' fill='%23c9d3e6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- One drawing surface: the stage, its instruments and its backdrop are all
+     geometry in one scene, so they share one light and one floor. -->
+<canvas id="stage" aria-hidden="true"></canvas>
+
+<!-- Keeps the screen awake where Wake Lock is unavailable: a browser will not
+     blank a display that is playing video. Muted, looped, 64x64, 685 bytes. -->
+<video id="keepawake" src="/static/vendor/keepawake.webm"
+       muted loop playsinline aria-hidden="true"></video>
+
+<header id="hud">
+  <div class="titles">
+    <h1 id="title">Reachy Mini Orchestra</h1>
+    <p id="subtitle">Loading…</p>
+  </div>
+  <div class="badges">
+    <span id="badge-mode" class="badge" hidden></span>
+    <span id="badge-wake" class="badge" title="Keeping the screen awake">●&nbsp;SCREEN&nbsp;AWAKE</span>
+  </div>
+</header>
+
+<!-- Instrument labels, projected from the 3D scene each frame. HTML rather
+     than textures: crisp at any resolution and selectable by a screen reader. -->
+<div id="labels" aria-hidden="true"></div>
+
+<div id="banner" role="status" hidden></div>
+
+<main id="console">
+  <div id="progress" role="progressbar" aria-label="Playback position" aria-valuemin="0" aria-valuemax="100">
+    <div id="progress-sections"></div>
+    <div id="progress-fill"></div>
+    <div id="progress-head"></div>
+  </div>
+
+  <div class="row">
+    <button id="btn-play" class="primary" type="button" aria-keyshortcuts="Space">
+      <svg viewBox="0 0 24 24" class="icon-play" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+      <svg viewBox="0 0 24 24" class="icon-stop" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+      <span class="label">Play</span>
+    </button>
+
+    <button id="btn-loop" class="toggle" type="button" aria-pressed="false" aria-keyshortcuts="L">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l4 4-4 4V8.5H8A3.5 3.5 0 0 0 4.5 12H2A6 6 0 0 1 8 6h9zM7 21l-4-4 4-4v2.5h9A3.5 3.5 0 0 0 19.5 12H22a6 6 0 0 1-6 6H7z"/></svg>
+      <span class="label">Loop</span>
+    </button>
+
+    <!-- The sound comes out of the robots, so this is their volume and not the
+         page's. Said in the label rather than only in the docs: on a wall
+         console a slider next to a browser reads as the browser's. -->
+    <div id="volume-group" class="volume" title="Volume of the robots' own speakers">
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="vol-icon"><path d="M4 9h3l4-4v14l-4-4H4zM15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/></svg>
+      <input id="volume" type="range" min="0" max="100" step="1" value="50"
+             aria-label="Robot speaker volume" aria-keyshortcuts="ArrowUp ArrowDown">
+      <output id="volume-out" for="volume">50</output>
+      <span id="volume-target" class="vol-tag">ROBOTS</span>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div id="clock"><span id="elapsed">0:00</span><span class="sep">/</span><span id="total">0:00</span></div>
+
+    <!-- Rehearsal only, and the server refuses to serve the file otherwise. -->
+    <button id="btn-audio" class="toggle" type="button" aria-pressed="false" hidden
+            title="Play the PC-rendered mix in this browser. Not the performance — that is the nine speakers">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm10-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
+      <span class="label">PC preview</span>
+    </button>
+
+    <button id="btn-full" class="ghost" type="button" aria-keyshortcuts="F" title="Fullscreen">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+
+    <button id="btn-estop" class="danger" type="button"
+            title="Disable the motors over HTTP, bypassing the agents">E-STOP</button>
+  </div>
+
+  <div id="fleet" class="fleet"></div>
+  <p id="state-line" class="state-line"></p>
+</main>
+
+<!-- No src until rehearsal mode asks for one: a page that never fetches it
+     cannot play it. In a performance this element stays empty. -->
+<audio id="preview" preload="none"></audio>
+
+<!-- If app.js never runs at all (a module that would not load, a browser
+     without import maps), nothing inside it can say so. This can. -->
+<script>
+setTimeout(function () {
+  if (window.__booted) return;
+  var s = document.getElementById('subtitle');
+  if (s) s.textContent = 'The page script did not start. Reload, or try another browser.';
+  try {
+    navigator.sendBeacon('/api/client-log', JSON.stringify({
+      kind: 'never-started', step: 'loading the page script', ua: navigator.userAgent }));
+  } catch (e) {}
+}, 20000);
+</script>
+
+<!-- The three.js addons are vendored unmodified and import from 'three';
+     this map is what resolves that, with no network involved. -->
+<script type="importmap">
+{ "imports": {
+    "three": "/static/vendor/three.module.min.js",
+    "three/addons/": "/static/vendor/addons/"
+} }
+</script>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

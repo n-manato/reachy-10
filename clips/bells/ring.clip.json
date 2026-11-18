@@ -1,0 +1,109 @@
+{
+  "name": "bells_ring",
+  "version": 1,
+  "instrument": "bells",
+  "description": "鈴を鳴らす（エアー）。\n\n見分けの要点: **アンテナ（耳）が主役で、頭はほとんど動かない**。9台の中で唯一、体幹ではなく耳で表現する。遠目にも「あの子だけ耳が跳ねている」と分かる。\n\nアンテナは xc330 クラスで ±0.8 N.m しかなく、ステュワート系サーボの約1/4の力しか出ない ―― このロボットで最も壊しやすいモータ。振幅は40度に抑え、検証器もアンテナ速度を頭より厳しく見ている。\n\n[clip fit] 112, 132 BPM で 安全域に収めるため振幅を head x1.000 / antennas x0.842 に縮めた。タイミングと軌道の形は変えていない。\n\n[song fit] 曲 'small_world' の文脈（音符ごとの重なり＋副次モーション込み）で安全域に収めるため、振幅を 頭 x1.000 / アンテナ x0.725 に縮めた。\n\n[clip fit] 90, 112, 130 BPM で 安全域に収めるため振幅を head x1.000 / antennas x0.734 に縮めた。タイミングと軌道の形は変えていない。",
+  "units": {
+    "translation": "mm",
+    "rotation": "deg"
+  },
+  "placement": "pattern",
+  "loop_beats": 1.0,
+  "anchors": [
+    0.0,
+    0.5
+  ],
+  "tracks": {
+    "head": [
+      {
+        "beat": 0.0,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.16,
+        "pose": {
+          "z": -1.0,
+          "roll": 3.0
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "pose": {},
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.66,
+        "pose": {
+          "z": -1.0,
+          "roll": -2.5
+        },
+        "interp": "minjerk"
+      },
+      {
+        "beat": 1.0,
+        "pose": {},
+        "interp": "minjerk"
+      }
+    ],
+    "antennas": [
+      {
+        "beat": 0.0,
+        "value": [
+          -15.0483,
+          15.0483
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.16,
+        "value": [
+          -28.4834,
+          28.4834
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.36,
+        "value": [
+          -17.7354,
+          17.7354
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.5,
+        "value": [
+          -15.4962,
+          15.4962
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.66,
+        "value": [
+          -24.9007,
+          24.9007
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 0.86,
+        "value": [
+          -17.2876,
+          17.2876
+        ],
+        "interp": "minjerk"
+      },
+      {
+        "beat": 1.0,
+        "value": [
+          -15.0483,
+          15.0483
+        ],
+        "interp": "minjerk"
+      }
+    ]
+  }
+}

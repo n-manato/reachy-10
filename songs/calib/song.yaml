@@ -1,0 +1,62 @@
+# 自動生成 -- tools/make_calibration.py
+#
+# 音の到着時刻を測るためだけの「曲」。旋律ではなくチャープが入っている。
+# 曲そのものでは測れない: 音楽は繰り返すので、相関のピークが立たない。
+# 台ごとに鳴る時刻をずらしてあるので、録音の中で必ず孤立する。
+song:
+  name: calib
+  title: "音声到着時刻の校正"
+  bpm: 100
+  meter: [4, 4]
+  bars: 18
+  lead_in_s: 2.0
+  tail_s: 1.0
+
+parts:
+  r01:
+    kind: idle
+    instrument: calibration
+    audio: r01.wav
+  r02:
+    kind: idle
+    instrument: calibration
+    audio: r02.wav
+  r03:
+    kind: idle
+    instrument: calibration
+    audio: r03.wav
+  r04:
+    kind: idle
+    instrument: calibration
+    audio: r04.wav
+  r05:
+    kind: idle
+    instrument: calibration
+    audio: r05.wav
+  r06:
+    kind: idle
+    instrument: calibration
+    audio: r06.wav
+  r07:
+    kind: idle
+    instrument: calibration
+    audio: r07.wav
+  r08:
+    kind: idle
+    instrument: calibration
+    audio: r08.wav
+  r09:
+    kind: idle
+    instrument: calibration
+    audio: r09.wav
+
+cast:
+  r01: r01
+  r02: r02
+  r03: r03
+  r04: r04
+  r05: r05
+  r06: r06
+  r07: r07
+  r08: r08
+  r09: r09

@@ -1,0 +1,26 @@
+{
+  "name": "tambourine_shake",
+  "version": 1,
+  "instrument": "tambourine",
+  "description": "Headless tambourine ring (jingles only, no drum head) mounted flat on the head crown, driven by roll and pitch flicks. Contactless, so no strike calibration and no stall risk. The roll flick is what rattles the jingles; the pitch component keeps the gesture from reading as a flat wobble.",
+  "units": { "translation": "mm", "rotation": "deg" },
+  "placement": "pattern",
+  "loop_beats": 1.0,
+  "anchors": [0.0, 0.5],
+  "tracks": {
+    "head": [
+      { "beat": 0.0,  "pose": { "roll": 0,    "pitch": 0,   "z": 0 },    "interp": "minjerk" },
+      { "beat": 0.17, "pose": { "roll": 7,    "pitch": 2.5, "z": -1.5 }, "interp": "minjerk" },
+      { "beat": 0.37, "pose": { "roll": -4.5, "pitch": 1,   "z": 0 },    "interp": "minjerk" },
+      { "beat": 0.5,  "pose": { "roll": 0,    "pitch": 0,   "z": 0 },    "interp": "minjerk" },
+      { "beat": 0.67, "pose": { "roll": -6,   "pitch": 2.5, "z": -1.5 }, "interp": "minjerk" },
+      { "beat": 0.87, "pose": { "roll": 4,    "pitch": 1,   "z": 0 },    "interp": "minjerk" },
+      { "beat": 1.0,  "pose": { "roll": 0,    "pitch": 0,   "z": 0 },    "interp": "minjerk" }
+    ],
+    "antennas": [
+      { "beat": 0.0, "value": 14, "interp": "minjerk" },
+      { "beat": 0.5, "value": 22, "interp": "minjerk" },
+      { "beat": 1.0, "value": 14, "interp": "minjerk" }
+    ]
+  }
+}

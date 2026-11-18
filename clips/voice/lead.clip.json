@@ -1,0 +1,32 @@
+{
+  "name": "voice_lead",
+  "version": 1,
+  "instrument": "voice",
+  "description": "主旋律を唄う。\n\n見分けの要点: **打点が無い**こと。他の8台はどこかで「当てる」動きをするが、歌い手だけは当てない。頭を上げ、胸を開き、フレーズの間ずっと支え続ける。これが一目で「この子は唄っている」と分かる差になる。\n\n物理楽器が無いので当たる相手も無く、動きは全部見た目のためにある。歌なら「息を吸って、伸ばして、収める」という形が正しい。\n\nアンカーは発声の瞬間。振りかぶり（息を吸う動き）がそこより前に来るよう、コンパイラが自動で配置する。",
+  "units": { "translation": "mm", "rotation": "deg" },
+  "placement": "trigger",
+  "anchors": [0.35],
+  "loop_beats": 2.0,
+  "tracks": {
+    "head": [
+      { "beat": 0.0,  "pose": { "z": 0,   "pitch": 0,  "x": 0 },  "interp": "minjerk" },
+      { "beat": 0.20, "pose": { "z": 2,   "pitch": -4, "x": -1 }, "interp": "minjerk" },
+      { "beat": 0.35, "pose": { "z": 5,   "pitch": -7, "x": 1 },  "interp": "minjerk" },
+      { "beat": 1.10, "pose": { "z": 4,   "pitch": -6, "x": 1 },  "interp": "minjerk" },
+      { "beat": 1.70, "pose": { "z": 1,   "pitch": -2, "x": 0 },  "interp": "minjerk" },
+      { "beat": 2.00, "pose": { "z": 0,   "pitch": 0,  "x": 0 },  "interp": "minjerk" }
+    ],
+    "body_yaw": [
+      { "beat": 0.0,  "value": 0,   "interp": "minjerk" },
+      { "beat": 0.35, "value": 2.5, "interp": "minjerk" },
+      { "beat": 1.40, "value": -2,  "interp": "minjerk" },
+      { "beat": 2.00, "value": 0,   "interp": "minjerk" }
+    ],
+    "antennas": [
+      { "beat": 0.0,  "value": 12, "interp": "minjerk" },
+      { "beat": 0.35, "value": 30, "interp": "minjerk" },
+      { "beat": 1.40, "value": 26, "interp": "minjerk" },
+      { "beat": 2.00, "value": 12, "interp": "minjerk" }
+    ]
+  }
+}
